@@ -14,14 +14,18 @@ export const sendOrderConfirmationEmail = async (user, order) => {
             return;
         }
 
-        // Create transporter with explicit configuration for better reliability on cloud platforms
+        // Create transporter with flexible configuration
+        // Defaults to Port 587 (STARTTLS) which is more common for cloud services
         const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true, // use SSL
+            host: process.env.MAIL_HOST || 'smtp.gmail.com',
+            port: process.env.MAIL_PORT || 587,
+            secure: process.env.MAIL_PORT == 465, // true for 465, false for 587
             auth: {
                 user: process.env.MAIL_USER,
                 pass: process.env.MAIL_PASS
+            },
+            tls: {
+                rejectUnauthorized: false // Helps with some cloud connection issues
             }
         });
 
