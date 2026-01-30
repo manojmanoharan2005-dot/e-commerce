@@ -15,6 +15,7 @@ import Settings from './pages/Settings';
 import Addresses from './pages/Addresses';
 import AdminDashboard from './pages/AdminDashboard';
 import Checkout from './pages/Checkout';
+import NotificationTicker from './components/NotificationTicker';
 
 
 // Protected Route Component
@@ -145,6 +146,8 @@ function AppContent() {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
+
+        <NotificationTicker />
 
         {/* Footer */}
         <footer className="bg-gray-900 text-white py-8 mt-auto">

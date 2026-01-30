@@ -87,7 +87,7 @@ const Products = () => {
                         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                             <h2 className="text-lg font-black uppercase tracking-tight">Filters</h2>
                             {(filters.category || filters.minPrice) && (
-                                <button onClick={clearFilters} className="text-[#2874f0] text-[10px] font-black uppercase">Clear All</button>
+                                <button onClick={clearFilters} className="text-[#2e7d32] text-[10px] font-black uppercase">Clear All</button>
                             )}
                         </div>
 
@@ -98,7 +98,7 @@ const Products = () => {
                                     <Link
                                         key={cat}
                                         to={`/products?category=${cat}`}
-                                        className={`block text-sm font-medium ${filters.category === cat ? 'text-[#2874f0]' : 'text-gray-600 hover:text-[#2874f0]'}`}
+                                        className={`block text-sm font-medium ${filters.category === cat ? 'text-[#2e7d32]' : 'text-gray-600 hover:text-[#2e7d32]'}`}
                                     >
                                         {cat}
                                     </Link>
@@ -128,8 +128,8 @@ const Products = () => {
                             <div className="space-y-2">
                                 {[4, 3, 2].map(r => (
                                     <label key={r} className="flex items-center gap-3 cursor-pointer group">
-                                        <input type="checkbox" className="w-4 h-4 checked:bg-[#2874f0]" />
-                                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1 group-hover:text-[#2874f0]">
+                                        <input type="checkbox" className="w-4 h-4 checked:bg-[#2e7d32]" />
+                                        <span className="text-sm font-medium text-gray-700 flex items-center gap-1 group-hover:text-[#2e7d32]">
                                             {r} <Star className="w-3 h-3 fill-current" /> & Above
                                         </span>
                                     </label>
@@ -141,7 +141,7 @@ const Products = () => {
                     {/* Right Side: Product Listing */}
                     <div className="flex-1 w-full bg-white shadow-sm rounded-sm overflow-hidden">
                         {/* Dynamic Promotional Banner */}
-                        <div className="bg-gradient-to-r from-[#2874f0] to-[#1259d3] p-4 flex items-center justify-between text-white overflow-hidden relative">
+                        <div className="bg-gradient-to-r from-[#2e7d32] to-[#1b5e20] p-4 flex items-center justify-between text-white overflow-hidden relative">
                             <div className="z-10 flex items-center gap-4">
                                 <div className="bg-white/20 p-2 rounded-full backdrop-blur-sm animate-pulse">
                                     <Sparkles className="w-5 h-5 text-[#ffe500] fill-[#ffe500]" />
@@ -180,7 +180,7 @@ const Products = () => {
                                     <button
                                         key={sort.id}
                                         onClick={() => handleSort(sort.id)}
-                                        className={`text-sm py-2 px-1 border-b-2 transition-all shrink-0 font-medium ${filters.sortBy === sort.id ? 'border-[#2874f0] text-[#2874f0] font-black' : 'border-transparent text-gray-600 hover:text-[#2874f0]'}`}
+                                        className={`text-sm py-2 px-1 border-b-2 transition-all shrink-0 font-medium ${filters.sortBy === sort.id ? 'border-[#2e7d32] text-[#2e7d32] font-black' : 'border-transparent text-gray-600 hover:text-[#2e7d32]'}`}
                                     >
                                         {sort.label}
                                     </button>
@@ -191,7 +191,7 @@ const Products = () => {
                         {/* Results */}
                         {loading ? (
                             <div className="p-20 flex items-center justify-center">
-                                <Loader className="w-10 h-10 text-[#2874f0] animate-spin" />
+                                <Loader className="w-10 h-10 text-[#2e7d32] animate-spin" />
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 divide-x divide-y divide-gray-100">
@@ -201,7 +201,7 @@ const Products = () => {
 
                                 {products.length === 0 && (
                                     <div className="col-span-full p-20 text-center">
-                                        <img src="https://static-assets-web.flixcart.com/fk-p-linchpin-web/fk-cp-zion/img/error-no-search-results_2353c5.png" className="w-48 mx-auto mb-6" alt="No results" />
+                                        <img src="/images/no_results.png" className="w-48 mx-auto mb-6" alt="No results" />
                                         <h3 className="text-xl font-black uppercase text-gray-400">No matching products</h3>
                                         <p className="text-gray-500 mt-2">Try checking your spelling or use more general terms</p>
                                     </div>

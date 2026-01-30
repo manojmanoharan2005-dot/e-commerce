@@ -10,6 +10,20 @@ const Cart = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [recommendations, setRecommendations] = useState([]);
+
+    useEffect(() => {
+        const fetchRecommendations = async () => {
+            try {
+                const response = await api.get('/products');
+                // Just take first 4 as recommendations
+                setRecommendations((response.data?.data || []).slice(0, 4));
+            } catch (error) {
+                console.error('Error fetching recommendations:', error);
+            }
+        };
+        fetchRecommendations();
+    }, []);
 
     useEffect(() => {
         if (user?.role === 'admin') {
@@ -32,7 +46,7 @@ const Cart = () => {
                     />
                     <h2 className="text-lg font-medium text-gray-900 mb-2">Your cart is empty!</h2>
                     <p className="text-sm text-gray-500 mb-6">Add items to it now.</p>
-                    <Link to="/products" className="bg-[#2874f0] text-white px-12 py-3 rounded-sm font-medium shadow-md hover:shadow-lg transition-all inline-block uppercase text-sm">
+                    <Link to="/products" className="bg-[#2e7d32] text-white px-12 py-3 rounded-sm font-medium shadow-md hover:shadow-lg transition-all inline-block uppercase text-sm">
                         Shop Now
                     </Link>
                 </div>
@@ -55,7 +69,7 @@ const Cart = () => {
                                 FertilizerMart ({cart.length})
                             </h1>
                             <div className="flex items-center gap-2 text-sm">
-                                <MapPin className="w-4 h-4 text-[#2874f0]" />
+                                <MapPin className="w-4 h-4 text-[#2e7d32]" />
                                 <span className="text-gray-600">Deliver to</span>
                                 <span className="font-medium">{user?.address?.city || 'Select Location'}</span>
                             </div>
@@ -100,7 +114,7 @@ const Cart = () => {
                                         <div className="flex-1">
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <h3 className="text-lg hover:text-[#2874f0] cursor-pointer transition-colors max-w-md line-clamp-1">{item.name}</h3>
+                                                    <h3 className="text-lg hover:text-[#2e7d32] cursor-pointer transition-colors max-w-md line-clamp-1">{item.name}</h3>
                                                     <p className="text-sm text-gray-500 mt-1">{item.category}</p>
                                                     <p className="text-xs text-gray-400 mt-2">Seller: AgriSmart Solutions</p>
                                                 </div>
@@ -114,11 +128,11 @@ const Cart = () => {
                                             <div className="mt-8 flex items-center gap-6">
                                                 <button
                                                     onClick={() => removeFromCart(item._id)}
-                                                    className="text-gray-800 font-bold uppercase text-sm hover:text-[#2874f0] transition-colors"
+                                                    className="text-gray-800 font-bold uppercase text-sm hover:text-[#2e7d32] transition-colors"
                                                 >
                                                     Remove
                                                 </button>
-                                                <button className="text-gray-800 font-bold uppercase text-sm hover:text-[#2874f0] transition-colors">
+                                                <button className="text-gray-800 font-bold uppercase text-sm hover:text-[#2e7d32] transition-colors">
                                                     Save for Later
                                                 </button>
                                             </div>
@@ -187,6 +201,22 @@ const Cart = () => {
                     </div>
 
                 </div>
+
+                {/* Recommendations at bottom of full cart */}
+                {cart.length > 0 && recommendations.length > 0 && (
+                    <div className="mt-8 bg-white p-6 rounded-sm shadow-sm">
+                        <h3 className="text-lg font-bold text-gray-900 mb-6 uppercase tracking-tight italic border-b border-gray-100 pb-2">People also bought these Fertilizers</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            {recommendations.map(rp => (
+                                <Link key={rp._id} to={`/products/${rp._id}`} className="flex flex-col group p-2 border border-gray-50 hover:border-green-100 transition-all">
+                                    <img src={rp.imageUrl} className="w-full aspect-square object-contain mb-2 mix-blend-multiply" />
+                                    <p className="text-[10px] font-black text-gray-900 truncate">{rp.name}</p>
+                                    <span className="text-[#388e3c] font-black text-xs">₹{rp.price}</span>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

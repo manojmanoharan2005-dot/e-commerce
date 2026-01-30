@@ -59,7 +59,7 @@ const Wishlist = () => {
                                         </div>
 
                                         <div className="flex-1 space-y-2">
-                                            <h3 className="text-gray-900 font-medium text-lg leading-tight group-hover:text-[#2874f0] transition-colors">
+                                            <h3 className="text-gray-900 font-medium text-lg leading-tight group-hover:text-[#2e7d32] transition-colors">
                                                 {item.name}
                                             </h3>
 
@@ -94,7 +94,7 @@ const Wishlist = () => {
                                             </button>
                                             <button
                                                 onClick={() => addToCart(item)}
-                                                className="bg-[#2874f0] text-white p-3 rounded-full shadow-lg hover:scale-110 transition-all"
+                                                className="bg-[#2e7d32] text-white p-3 rounded-full shadow-lg hover:scale-110 transition-all"
                                                 title="Add to Cart"
                                             >
                                                 <ShoppingBag className="w-5 h-5" />
@@ -114,7 +114,7 @@ const Wishlist = () => {
                                 </div>
                                 <h3 className="text-xl font-black text-gray-400 uppercase tracking-widest">Your Wishlist is Empty</h3>
                                 <p className="text-gray-500 mt-2 mb-8 font-medium italic">Add items that you'd like to buy later!</p>
-                                <Link to="/products" className="bg-[#2874f0] text-white px-12 py-3 rounded-sm font-black uppercase text-sm shadow-xl hover:shadow-[#2874f0]/20 transition-all">
+                                <Link to="/products" className="bg-[#2e7d32] text-white px-12 py-3 rounded-sm font-black uppercase text-sm shadow-xl hover:shadow-[#2e7d32]/20 transition-all">
                                     Discover Products
                                 </Link>
                             </div>

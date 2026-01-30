@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import UserSidebar from '../components/UserSidebar';
-import { Search, Loader, Circle, ChevronRight, Package } from 'lucide-react';
+import { Search, Loader, Circle, ChevronRight, Package, Download } from 'lucide-react';
 import api from '../utils/api';
 import { Link } from 'react-router-dom';
 
@@ -45,10 +45,89 @@ const MyOrders = () => {
         }
     };
 
+    const handleDownloadInvoice = (order) => {
+        const invoiceWindow = window.open('', '_blank');
+        const invoiceHtml = `
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>Invoice - ${order._id}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+                        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #2e7d32; padding-bottom: 20px; }
+                        .logo { color: #2e7d32; font-size: 24px; font-weight: bold; }
+                        .invoice-info { text-align: right; }
+                        .billing { margin-top: 40px; display: flex; justify-content: space-between; }
+                        .table { width: 100%; margin-top: 40px; border-collapse: collapse; }
+                        .table th { background: #f8f9fa; text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
+                        .table td { padding: 12px; border-bottom: 1px solid #eee; }
+                        .total { margin-top: 30px; text-align: right; font-size: 20px; font-weight: bold; }
+                        .footer { margin-top: 60px; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #ddd; padding-top: 20px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div class="logo">FertilizerMart</div>
+                        <div class="invoice-info">
+                            <h3>INVOICE</h3>
+                            <p>Order ID: ${order._id}</p>
+                            <p>Date: ${new Date(order.createdAt).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="billing">
+                        <div>
+                            <strong>Sold By:</strong><br>
+                            FertilizerMart Agriculture Solutions<br>
+                            123 Green Field, Punjab, India
+                        </div>
+                        <div>
+                            <strong>Billed To:</strong><br>
+                            ${order.shippingAddress?.name}<br>
+                            ${order.shippingAddress?.street}, ${order.shippingAddress?.city}<br>
+                            ${order.shippingAddress?.state} - ${order.shippingAddress?.pincode}
+                        </div>
+                    </div>
+
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Price</th>
+                                <th>Qty</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${order.items.map(item => `
+                                <tr>
+                                    <td>${item.name}</td>
+                                    <td>₹${item.price}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>₹${item.subtotal || item.price * item.quantity}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+
+                    <div class="total">Total Amount: ₹${order.totalAmount}</div>
+
+                    <div class="footer">
+                        <p>Thank you for shopping with FertilizerMart!</p>
+                        <p>This is a computer-generated invoice and doesn't require a signature.</p>
+                    </div>
+                    <script>window.print();</script>
+                </body>
+            </html>
+        `;
+        invoiceWindow.document.write(invoiceHtml);
+        invoiceWindow.document.close();
+    };
+
     const getStatusInfo = (status) => {
         switch (status) {
             case 'delivered': return { color: 'text-[#388e3c]', bg: 'bg-[#388e3c]', text: 'Delivered on' };
-            case 'shipped': return { color: 'text-[#2874f0]', bg: 'bg-[#2874f0]', text: 'Shipped on' };
+            case 'shipped': return { color: 'text-[#2e7d32]', bg: 'bg-[#2e7d32]', text: 'Shipped on' };
             case 'cancelled': return { color: 'text-[#ff6161]', bg: 'bg-[#ff6161]', text: 'Cancelled on' };
             default: return { color: 'text-[#f5a623]', bg: 'bg-[#f5a623]', text: 'Order Processing' };
         }
@@ -59,6 +138,40 @@ const MyOrders = () => {
             item.name?.toLowerCase().includes(searchTerm.toLowerCase())
         ) || order._id.includes(searchTerm)
     );
+
+    const renderTrackingSteps = (currentStatus) => {
+        const steps = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
+        const currentIndex = steps.indexOf(currentStatus);
+
+        if (currentStatus === 'cancelled') {
+            return (
+                <div className="flex items-center gap-2 mt-4 p-2 bg-red-50 rounded-sm border border-red-100">
+                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                    <span className="text-[10px] font-black uppercase text-red-600 tracking-widest">Order Cancelled & Refund Initiated</span>
+                </div>
+            );
+        }
+
+        return (
+            <div className="mt-6 flex items-center w-full px-2">
+                {steps.map((step, idx) => (
+                    <div key={step} className="flex items-center relative flex-1 last:flex-none">
+                        <div className={`w-3 h-3 rounded-full z-10 ${idx <= currentIndex ? 'bg-[#2e7d32]' : 'bg-gray-200'}`}>
+                            {idx <= currentIndex && (
+                                <div className="w-full h-full bg-[#2e7d32] rounded-full animate-ping opacity-20"></div>
+                            )}
+                        </div>
+                        {idx < steps.length - 1 && (
+                            <div className={`h-[2px] w-full mx-[-1px] ${idx < currentIndex ? 'bg-[#2e7d32]' : 'bg-gray-100'}`}></div>
+                        )}
+                        <span className={`absolute -bottom-5 left-1/2 -translate-x-1/2 text-[8px] font-black uppercase whitespace-nowrap tracking-tighter ${idx === currentIndex ? 'text-[#2e7d32]' : 'text-gray-300'}`}>
+                            {step}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
     return (
         <div className="min-h-screen bg-[#f1f3f6] py-4">
@@ -71,7 +184,7 @@ const MyOrders = () => {
 
                     <div className="flex-1 w-full space-y-4">
                         {/* Order Search Bar */}
-                        <div className="bg-white p-3 rounded-sm shadow-sm flex items-center gap-2 border border-gray-100 focus-within:ring-1 focus-within:ring-[#2874f0]">
+                        <div className="bg-white p-3 rounded-sm shadow-sm flex items-center gap-2 border border-gray-100 focus-within:ring-1 focus-within:ring-[#2e7d32]">
                             <Search className="w-5 h-5 text-gray-400" />
                             <input
                                 type="text"
@@ -80,14 +193,14 @@ const MyOrders = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="flex-1 bg-transparent outline-none text-sm font-medium"
                             />
-                            <button className="bg-[#2874f0] text-white px-8 py-2 rounded-sm font-black uppercase text-xs">
+                            <button className="bg-[#2e7d32] text-white px-8 py-2 rounded-sm font-black uppercase text-xs">
                                 Search Orders
                             </button>
                         </div>
 
                         {loading ? (
                             <div className="bg-white p-20 flex items-center justify-center rounded-sm">
-                                <Loader className="w-10 h-10 text-[#2874f0] animate-spin" />
+                                <Loader className="w-10 h-10 text-[#2e7d32] animate-spin" />
                             </div>
                         ) : filteredOrders.length === 0 ? (
                             <div className="bg-white p-20 text-center rounded-sm">
@@ -114,7 +227,7 @@ const MyOrders = () => {
 
                                                     <div className="flex-1">
                                                         <Link to={`/order/${order._id}`}>
-                                                            <h4 className="text-sm font-medium text-gray-900 line-clamp-2 hover:text-[#2874f0]">
+                                                            <h4 className="text-sm font-medium text-gray-900 line-clamp-2 hover:text-[#2e7d32]">
                                                                 {item.name}
                                                             </h4>
                                                         </Link>
@@ -140,22 +253,31 @@ const MyOrders = () => {
                                                                 </p>
                                                             </div>
                                                         </div>
+                                                        {renderTrackingSteps(order.status)}
                                                     </div>
                                                 </div>
                                             );
                                         })}
 
                                         {/* Order Footnote with Actions */}
-                                        {['pending', 'confirmed', 'processing'].includes(order.status) && (
-                                            <div className="bg-gray-50/50 p-4 flex justify-end border-t border-gray-100">
+                                        <div className="bg-gray-50/50 p-4 flex justify-between items-center border-t border-gray-100">
+                                            <button
+                                                onClick={() => handleDownloadInvoice(order)}
+                                                className="text-[#2e7d32] text-xs font-black uppercase hover:underline flex items-center gap-1.5"
+                                            >
+                                                <Download className="w-3.5 h-3.5" />
+                                                Download Invoice
+                                            </button>
+
+                                            {['pending', 'confirmed', 'processing'].includes(order.status) && (
                                                 <button
                                                     onClick={() => handleCancelOrder(order._id)}
                                                     className="text-[#ff6161] text-xs font-black uppercase hover:underline flex items-center gap-1"
                                                 >
                                                     Cancel Order
                                                 </button>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>

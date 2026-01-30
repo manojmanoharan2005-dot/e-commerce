@@ -191,3 +191,43 @@ export const getGlobalMarketPrices = async () => {
         throw new Error('Failed to fetch global market prices');
     }
 };
+
+// General AI Field Assistant Chat
+export const getChatResponse = async (history, message) => {
+    try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }); // Use flash for chat stability
+
+        // Gemini history MUST start with USER. 
+        // Our frontend might send a greeting from MODEL as the first item.
+        // We filter the history to ensure it starts with 'user'.
+        let validHistory = [];
+        if (history && Array.isArray(history)) {
+            // Find the first user message
+            const firstUserIndex = history.findIndex(h => h.role === 'user');
+            if (firstUserIndex !== -1) {
+                validHistory = history.slice(firstUserIndex);
+            }
+        }
+
+        const chat = model.startChat({
+            history: validHistory,
+            generationConfig: {
+                maxOutputTokens: 1000,
+            },
+        });
+
+        const systemInstruction = `You are "AgriSmart AI", an expert agricultural consultant for FertilizerMart.
+        Provide advice on crops, fertilizers, pests, and soil health.
+        Translate technical farming terms into simple, actionable steps for farmers.
+        Tone: Professional, helpful, and empathetic to farmers' challenges.
+        If the question is unrelated to agriculture, say: "As your AgriSmart assistant, I specialize in farming. How can I help with your crops or soil today?"`;
+
+        // We send the system instruction with the message to keep it simple and context-aware
+        const result = await chat.sendMessage(`${systemInstruction}\n\nClient Question: ${message}`);
+        const response = await result.response;
+        return response.text();
+    } catch (error) {
+        console.error('Gemini Chat Error:', error);
+        throw new Error('AgriSmart AI is currently offline. Please try again soon.');
+    }
+};

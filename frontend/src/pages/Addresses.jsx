@@ -137,15 +137,15 @@ const Addresses = () => {
                             {!showForm ? (
                                 <button
                                     onClick={() => setShowForm(true)}
-                                    className="w-full flex items-center gap-2 text-[#2874f0] font-black border border-gray-100 p-4 rounded-sm hover:shadow-md transition-all uppercase text-sm mb-6"
+                                    className="w-full flex items-center gap-2 text-[#2e7d32] font-black border border-gray-100 p-4 rounded-sm hover:shadow-md transition-all uppercase text-sm mb-6"
                                 >
                                     <Plus className="w-5 h-5" />
                                     Add a New Address
                                 </button>
                             ) : (
-                                <div className="bg-[#f5faff] p-8 rounded border border-[#2874f0]/10 mb-8">
+                                <div className="bg-[#f5faff] p-8 rounded border border-[#2e7d32]/10 mb-8">
                                     <div className="flex items-center justify-between mb-6">
-                                        <h2 className="text-[#2874f0] font-black uppercase text-sm">
+                                        <h2 className="text-[#2e7d32] font-black uppercase text-sm">
                                             {editingId ? 'Edit Address' : 'Add New Address'}
                                         </h2>
                                         <button onClick={() => { setShowForm(false); resetForm(); }} className="text-gray-400 hover:text-gray-600">
@@ -162,7 +162,7 @@ const Addresses = () => {
                                                 placeholder="Name"
                                                 value={formData.name}
                                                 onChange={handleInputChange}
-                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm"
+                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm"
                                             />
                                             <input
                                                 type="text"
@@ -171,7 +171,7 @@ const Addresses = () => {
                                                 placeholder="10-digit mobile number"
                                                 value={formData.phone}
                                                 onChange={handleInputChange}
-                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm"
+                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm"
                                             />
                                         </div>
 
@@ -183,7 +183,7 @@ const Addresses = () => {
                                                 placeholder="Pincode"
                                                 value={formData.pincode}
                                                 onChange={handleInputChange}
-                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm"
+                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm"
                                             />
                                             <input
                                                 type="text"
@@ -192,7 +192,7 @@ const Addresses = () => {
                                                 placeholder="Locality"
                                                 value={formData.locality}
                                                 onChange={handleInputChange}
-                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm"
+                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm"
                                             />
                                         </div>
 
@@ -203,7 +203,7 @@ const Addresses = () => {
                                             placeholder="Address (Area and Street)"
                                             value={formData.address}
                                             onChange={handleInputChange}
-                                            className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm resize-none"
+                                            className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm resize-none"
                                         ></textarea>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -212,7 +212,7 @@ const Addresses = () => {
                                                 required
                                                 value={formData.state}
                                                 onChange={handleInputChange}
-                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm bg-white"
+                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm bg-white"
                                             >
                                                 <option value="">Select State</option>
                                                 {Object.keys(indiaData).map(state => (
@@ -226,7 +226,7 @@ const Addresses = () => {
                                                 disabled={!formData.state}
                                                 value={formData.city}
                                                 onChange={handleInputChange}
-                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm bg-white disabled:bg-gray-50 disabled:text-gray-400"
+                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm bg-white disabled:bg-gray-50 disabled:text-gray-400"
                                             >
                                                 <option value="">Select District</option>
                                                 {formData.state && indiaData[formData.state].map(district => (
@@ -242,7 +242,7 @@ const Addresses = () => {
                                                 placeholder="Landmark (Optional)"
                                                 value={formData.landmark}
                                                 onChange={handleInputChange}
-                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm"
+                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm"
                                             />
                                             <input
                                                 type="text"
@@ -250,7 +250,7 @@ const Addresses = () => {
                                                 placeholder="Alternate Phone (Optional)"
                                                 value={formData.alternatePhone}
                                                 onChange={handleInputChange}
-                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2874f0] text-sm"
+                                                className="w-full border border-gray-200 p-3 rounded-sm focus:outline-none focus:border-[#2e7d32] text-sm"
                                             />
                                         </div>
 
@@ -264,7 +264,7 @@ const Addresses = () => {
                                                         value="Home"
                                                         checked={formData.type === 'Home'}
                                                         onChange={handleInputChange}
-                                                        className="w-4 h-4 text-[#2874f0]"
+                                                        className="w-4 h-4 text-[#2e7d32]"
                                                     />
                                                     <span className="text-sm font-bold">Home</span>
                                                 </label>
@@ -275,7 +275,7 @@ const Addresses = () => {
                                                         value="Work"
                                                         checked={formData.type === 'Work'}
                                                         onChange={handleInputChange}
-                                                        className="w-4 h-4 text-[#2874f0]"
+                                                        className="w-4 h-4 text-[#2e7d32]"
                                                     />
                                                     <span className="text-sm font-bold">Work</span>
                                                 </label>
@@ -285,14 +285,14 @@ const Addresses = () => {
                                         <div className="flex items-center gap-4 pt-4">
                                             <button
                                                 type="submit"
-                                                className="bg-[#2874f0] text-white px-10 py-3 rounded-sm font-black uppercase text-sm shadow-md hover:shadow-lg transition-all"
+                                                className="bg-[#2e7d32] text-white px-10 py-3 rounded-sm font-black uppercase text-sm shadow-md hover:shadow-lg transition-all"
                                             >
                                                 Save
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => { setShowForm(false); resetForm(); }}
-                                                className="text-[#2874f0] font-black uppercase text-sm hover:underline"
+                                                className="text-[#2e7d32] font-black uppercase text-sm hover:underline"
                                             >
                                                 Cancel
                                             </button>
@@ -303,7 +303,7 @@ const Addresses = () => {
 
                             {loading ? (
                                 <div className="flex items-center justify-center py-20">
-                                    <Loader className="w-10 h-10 text-[#2874f0] animate-spin" />
+                                    <Loader className="w-10 h-10 text-[#2e7d32] animate-spin" />
                                 </div>
                             ) : (
                                 <div className="space-y-0">
@@ -334,7 +334,7 @@ const Addresses = () => {
                                                     {!addr.isDefault && (
                                                         <button
                                                             onClick={() => handleSetDefault(addr._id)}
-                                                            className="text-[#2874f0] text-xs font-black uppercase hover:underline pt-2"
+                                                            className="text-[#2e7d32] text-xs font-black uppercase hover:underline pt-2"
                                                         >
                                                             Set as Default
                                                         </button>
@@ -348,7 +348,7 @@ const Addresses = () => {
                                                     <div className="absolute top-0 right-10 bg-white shadow-xl rounded border border-gray-100 py-1 opacity-0 pointer-events-none group-hover/menu:opacity-100 group-hover/menu:pointer-events-auto transition-all flex items-center min-w-max">
                                                         <button
                                                             onClick={() => handleEdit(addr)}
-                                                            className="px-4 py-2 text-xs font-black text-gray-600 hover:text-[#2874f0] uppercase"
+                                                            className="px-4 py-2 text-xs font-black text-gray-600 hover:text-[#2e7d32] uppercase"
                                                         >
                                                             Edit
                                                         </button>

@@ -10,14 +10,14 @@ const Home = () => {
     const [timeLeft, setTimeLeft] = useState({ hours: 2, minutes: 45, seconds: 0 });
 
     const categories = [
-        { name: 'Organic', image: 'https://rukminim1.flixcart.com/flap/128/128/image/f15c02bfeb02d15d.png?q=100', icon: Leaf },
-        { name: 'Chemical', image: 'https://rukminim1.flixcart.com/flap/128/128/image/29327f40e9c4d26b.png?q=100', icon: FlaskConical },
-        { name: 'Seeds', image: 'https://rukminim1.flixcart.com/flap/128/128/image/22fddf3c7da4c4f4.png?q=100', icon: Wheat },
-        { name: 'Tools', image: 'https://rukminim1.flixcart.com/flap/128/128/image/69cff58.png?q=100', icon: Wrench },
-        { name: 'Pesticides', image: 'https://rukminim1.flixcart.com/flap/128/128/image/ab7e2c02.png?q=100', icon: Shield },
-        { name: 'Equipment', image: 'https://rukminim1.flixcart.com/flap/128/128/image/0ff199d1bd27eb98.png?q=100', icon: Box },
-        { name: 'Soil', image: 'https://rukminim1.flixcart.com/flap/128/128/image/71033762.png?q=100', icon: Sprout },
-        { name: 'Offers', image: 'https://rukminim1.flixcart.com/flap/128/128/image/f15c02bfeb02d15d.png?q=100', icon: Sparkles }
+        { name: 'Organic', image: '/images/categories/organic.png', icon: Leaf },
+        { name: 'Chemical', image: '/images/categories/chemical.png', icon: FlaskConical },
+        { name: 'Seeds', image: '/images/categories/seeds.png', icon: Wheat },
+        { name: 'Tools', image: '/images/categories/tools.png', icon: Wrench },
+        { name: 'Pesticides', image: '/images/categories/pesticides.png', icon: Shield },
+        { name: 'Equipment', image: '/images/categories/equipment.png', icon: Box },
+        { name: 'Soil', image: '/images/categories/soil.png', icon: Sprout },
+        { name: 'Offers', image: '/images/categories/offers.png', icon: Sparkles }
     ];
 
     useEffect(() => {
@@ -84,7 +84,7 @@ const Home = () => {
                                     className="w-full h-full object-contain group-hover:scale-110 transition-transform"
                                 />
                             </div>
-                            <span className="text-sm font-bold text-gray-800 group-hover:text-[#2874f0] tracking-tight">
+                            <span className="text-sm font-bold text-gray-800 group-hover:text-[#2e7d32] tracking-tight">
                                 {cat.name}
                             </span>
                         </Link>
@@ -104,7 +104,7 @@ const Home = () => {
                         <div className="inline-block bg-[#ffe500] text-gray-900 text-[10px] font-black px-3 py-1 rounded-sm mb-4 w-fit uppercase tracking-widest">Mega Savings Event</div>
                         <h2 className="text-4xl md:text-6xl font-black mb-2 italic leading-none">SMART FARMING</h2>
                         <p className="text-xl md:text-2xl font-bold mb-8 text-white/90 max-w-lg">Premium Fertilizers & Seeds at Factory Prices. Expert AI advice for free.</p>
-                        <Link to="/products" className="bg-[#2874f0] text-white px-12 py-4 rounded-sm font-black w-fit shadow-2xl hover:bg-black transition-all uppercase text-sm tracking-widest">
+                        <Link to="/products" className="bg-[#2e7d32] text-white px-12 py-4 rounded-sm font-black w-fit shadow-2xl hover:bg-black transition-all uppercase text-sm tracking-widest">
                             Shop The Deals
                         </Link>
                     </div>
@@ -129,7 +129,7 @@ const Home = () => {
                                 </div>
                             </div>
                         </div>
-                        <Link to="/products" className="bg-[#2874f0] text-white px-8 py-2.5 rounded-sm text-xs font-black shadow hover:bg-black transition-all uppercase tracking-widest">
+                        <Link to="/products" className="bg-[#2e7d32] text-white px-8 py-2.5 rounded-sm text-xs font-black shadow hover:bg-black transition-all uppercase tracking-widest">
                             View all deals
                         </Link>
                     </div>
@@ -148,25 +148,25 @@ const Home = () => {
                     <div className="bg-white p-4 shadow-sm rounded-sm mb-4 overflow-hidden">
                         <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="w-5 h-5 text-[#2874f0]" />
+                                <TrendingUp className="w-5 h-5 text-[#2e7d32]" />
                                 <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight italic">Trending Now</h2>
                             </div>
-                            <Link to="/products" className="text-[#2874f0] font-black text-xs uppercase hover:underline">See everything</Link>
+                            <Link to="/products" className="text-[#2e7d32] font-black text-xs uppercase hover:underline">See everything</Link>
                         </div>
                         <div className="flex gap-4 overflow-x-auto py-4 scrollbar-hide pb-6">
                             {trendingProducts.map(product => (
-                                <Link key={product._id} to={`/products/${product._id}`} className="min-w-[200px] flex flex-col group p-4 border border-gray-50 rounded-sm hover:border-blue-100 hover:shadow-lg transition-all bg-white relative">
-                                    <div className="absolute top-2 right-2 bg-blue-50 text-[#2874f0] text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase">Hot</div>
+                                <Link key={product._id} to={`/products/${product._id}`} className="min-w-[200px] flex flex-col group p-4 border border-gray-50 rounded-sm hover:border-green-100 hover:shadow-lg transition-all bg-white relative">
+                                    <div className="absolute top-2 right-2 bg-green-50 text-[#2e7d32] text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase">Hot</div>
                                     <div className="w-full aspect-square mb-4">
                                         <img src={product.imageUrl} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform" alt={product.name} />
                                     </div>
-                                    <p className="text-xs font-black text-gray-900 group-hover:text-[#2874f0] line-clamp-1 mb-1">{product.name}</p>
+                                    <p className="text-xs font-black text-gray-900 group-hover:text-[#2e7d32] line-clamp-1 mb-1">{product.name}</p>
                                     <div className="flex items-center gap-2">
                                         <span className="text-[#388e3c] font-black">₹{product.price}</span>
                                         <span className="text-gray-400 text-[10px] line-through">₹{product.mrp}</span>
                                     </div>
                                     <div className="mt-2 w-full bg-gray-100 h-1 rounded-full overflow-hidden">
-                                        <div className="bg-[#2874f0] h-full" style={{ width: `${Math.random() * 60 + 40}%` }}></div>
+                                        <div className="bg-[#2e7d32] h-full" style={{ width: `${Math.random() * 60 + 40}%` }}></div>
                                     </div>
                                     <p className="text-[8px] font-black text-gray-400 mt-1 uppercase">Selling Fast</p>
                                 </Link>
@@ -177,11 +177,11 @@ const Home = () => {
 
                 {/* Marketing Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                    <div className="bg-gradient-to-br from-[#2874f0] to-[#1259d3] p-8 rounded-sm text-white relative overflow-hidden group">
+                    <div className="bg-gradient-to-br from-[#2e7d32] to-[#1b5e20] p-8 rounded-sm text-white relative overflow-hidden group">
                         <div className="z-10 relative">
                             <h3 className="text-2xl font-black mb-2 italic">FREE AI ANALYSIS</h3>
                             <p className="text-white/80 text-sm font-bold mb-6 max-w-[180px]">Ask Gemini about your crop suitability and soil health.</p>
-                            <Link to="/products" className="bg-white text-[#2874f0] px-6 py-2.5 rounded-sm font-black uppercase text-xs shadow-xl inline-block hover:scale-105 transition-transform">Get Advice</Link>
+                            <Link to="/products" className="bg-white text-[#2e7d32] px-6 py-2.5 rounded-sm font-black uppercase text-xs shadow-xl inline-block hover:scale-105 transition-transform">Get Advice</Link>
                         </div>
                         <Sparkles className="w-32 h-32 absolute right-[-20px] bottom-[-20px] text-white/10 rotate-12 group-hover:scale-110 transition-transform" />
                     </div>
@@ -208,7 +208,7 @@ const Home = () => {
                     <div className="bg-white p-4 shadow-sm rounded-sm">
                         <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
                             <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Best Sellers in Fertilizers</h2>
-                            <Link to="/products" className="text-[#2874f0] font-black text-xs uppercase hover:underline">View All</Link>
+                            <Link to="/products" className="text-[#2e7d32] font-black text-xs uppercase hover:underline">View All</Link>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                             {topDeals.map(product => <ProductCard key={product._id} product={product} />)}

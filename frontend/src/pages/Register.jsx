@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
 import { Loader } from 'lucide-react';
+import locationsData from '../data/locations.json';
 
 const Register = () => {
     const [formData, setFormData] = useState({
@@ -9,8 +10,12 @@ const Register = () => {
         email: '',
         password: '',
         phone: '',
-        role: 'farmer'
+        state: '',
+        district: '',
+        pincode: ''
     });
+    const [pincodeLoading, setPincodeLoading] = useState(false);
+    const [districts, setDistricts] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { register, isAuthenticated, user } = useAuth();
@@ -26,8 +31,48 @@ const Register = () => {
         }
     }, [isAuthenticated, user, navigate]);
 
+    const fetchLocationByPincode = async (pincode) => {
+        if (pincode.length !== 6) return;
+
+        setPincodeLoading(true);
+        try {
+            const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+            const data = await response.json();
+
+            if (data[0].Status === 'Success') {
+                const { State, District } = data[0].PostOffice[0];
+
+                // Map API state name to our locationsData state name if necessary (usually they match)
+                setFormData(prev => ({
+                    ...prev,
+                    state: State,
+                    district: District
+                }));
+
+                // Update districts list for the dropdown
+                const stateObj = locationsData.states.find(s => s.state === State);
+                setDistricts(stateObj ? stateObj.districts : [District]);
+            }
+        } catch (err) {
+            console.error('Pincode fetch error:', err);
+        } finally {
+            setPincodeLoading(false);
+        }
+    };
+
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+
+        if (name === 'state') {
+            const stateObj = locationsData.states.find(s => s.state === value);
+            setDistricts(stateObj ? stateObj.districts : []);
+            setFormData(prev => ({ ...prev, state: value, district: '' }));
+        }
+
+        if (name === 'pincode' && value.length === 6) {
+            fetchLocationByPincode(value);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -35,7 +80,16 @@ const Register = () => {
         setError('');
         setLoading(true);
 
-        const result = await register(formData);
+        const registrationData = {
+            ...formData,
+            address: {
+                state: formData.state,
+                district: formData.district,
+                pincode: formData.pincode
+            }
+        };
+
+        const result = await register(registrationData);
 
         if (result.success) {
             return;
@@ -49,8 +103,8 @@ const Register = () => {
         <div className="min-h-[calc(100vh-64px)] bg-[#f1f3f6] flex items-center justify-center py-10 px-4">
             <div className="bg-white flex w-full max-w-[850px] min-h-[600px] rounded-sm overflow-hidden shadow-[0_2px_4px_0_rgba(0,0,0,.2)]">
 
-                {/* Left Side: Blue Panel */}
-                <div className="hidden md:flex w-2/5 bg-[#2874f0] p-10 flex-col justify-between text-white">
+                {/* Left Side: Green Panel */}
+                <div className="hidden md:flex w-2/5 bg-[#2e7d32] p-10 flex-col justify-between text-white">
                     <div>
                         <h2 className="text-[28px] font-black leading-tight mb-4 tracking-tight">Looks like you're new here!</h2>
                         <p className="text-[18px] text-[#dbdbdb] leading-relaxed">
@@ -58,9 +112,9 @@ const Register = () => {
                         </p>
                     </div>
                     <img
-                        src="https://static-assets-web.flixcart.com/fk-p-linchpin-web/fk-cp-zion/img/login_img_c4a81e.png"
+                        src="/images/login_agri.png"
                         alt="Register illustration"
-                        className="w-full h-auto mb-4"
+                        className="w-full h-auto mb-4 rounded shadow-lg"
                     />
                 </div>
 
@@ -68,7 +122,7 @@ const Register = () => {
                 <div className="flex-1 p-10 flex flex-col justify-between">
                     <div>
                         <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="relative border-b border-gray-300 focus-within:border-[#2874f0] group transition-all">
+                            <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
                                 <input
                                     type="text"
                                     name="name"
@@ -80,7 +134,7 @@ const Register = () => {
                                 />
                             </div>
 
-                            <div className="relative border-b border-gray-300 focus-within:border-[#2874f0] group transition-all">
+                            <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
                                 <input
                                     type="email"
                                     name="email"
@@ -92,7 +146,7 @@ const Register = () => {
                                 />
                             </div>
 
-                            <div className="relative border-b border-gray-300 focus-within:border-[#2874f0] group transition-all">
+                            <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
                                 <input
                                     type="tel"
                                     name="phone"
@@ -104,37 +158,79 @@ const Register = () => {
                                 />
                             </div>
 
-                            <div className="relative border-b border-gray-300 focus-within:border-[#2874f0] group transition-all">
-                                <input
-                                    type="password"
-                                    name="password"
-                                    required
-                                    minLength={6}
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    className="w-full py-2 bg-transparent focus:outline-none transition-all placeholder:text-gray-400 text-sm font-medium"
-                                    placeholder="Set Password"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        required
+                                        minLength={6}
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        className="w-full py-2 bg-transparent focus:outline-none transition-all placeholder:text-gray-400 text-sm font-medium"
+                                        placeholder="Set Password"
+                                    />
+                                </div>
+
+                                <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
+                                    <input
+                                        type="text"
+                                        name="pincode"
+                                        required
+                                        maxLength={6}
+                                        value={formData.pincode}
+                                        onChange={handleChange}
+                                        className="w-full py-2 bg-transparent focus:outline-none transition-all placeholder:text-gray-400 text-sm font-medium"
+                                        placeholder="Enter Pincode"
+                                    />
+                                    {pincodeLoading && (
+                                        <div className="absolute right-0 bottom-2">
+                                            <Loader className="w-3 h-3 animate-spin text-[#2e7d32]" />
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
-                            <div className="relative border-b border-gray-300 focus-within:border-[#2874f0] group transition-all">
-                                <select
-                                    name="role"
-                                    value={formData.role}
-                                    onChange={handleChange}
-                                    className="w-full py-2 bg-transparent focus:outline-none transition-all text-sm font-medium text-gray-700 cursor-pointer"
-                                >
-                                    <option value="farmer">Register as Farmer</option>
-                                    <option value="admin">Register as Admin</option>
-                                </select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
+                                    <select
+                                        name="state"
+                                        required
+                                        value={formData.state}
+                                        onChange={handleChange}
+                                        className="w-full py-2 bg-transparent focus:outline-none transition-all text-sm font-medium text-gray-700 cursor-pointer"
+                                    >
+                                        <option value="">Select State</option>
+                                        {locationsData.states.map(s => (
+                                            <option key={s.state} value={s.state}>{s.state}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
+                                    <select
+                                        name="district"
+                                        required
+                                        value={formData.district}
+                                        onChange={handleChange}
+                                        disabled={!formData.state}
+                                        className="w-full py-2 bg-transparent focus:outline-none transition-all text-sm font-medium text-gray-700 cursor-pointer disabled:opacity-50"
+                                    >
+                                        <option value="">Select District</option>
+                                        {districts.map(d => (
+                                            <option key={d} value={d}>{d}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
+
 
                             {error && (
                                 <p className="text-red-500 text-xs font-bold uppercase tracking-tight">{error}</p>
                             )}
 
                             <p className="text-[12px] text-gray-400 font-medium leading-relaxed">
-                                By continuing, you agree to FertilizerMart's <span className="text-[#2874f0] cursor-pointer">Terms of Use</span> and <span className="text-[#2874f0] cursor-pointer">Privacy Policy</span>.
+                                By continuing, you agree to FertilizerMart's <span className="text-[#2e7d32] cursor-pointer">Terms of Use</span> and <span className="text-[#2e7d32] cursor-pointer">Privacy Policy</span>.
                             </p>
 
                             <button
@@ -148,7 +244,7 @@ const Register = () => {
                     </div>
 
                     <div className="mt-8">
-                        <Link to="/login" className="w-full bg-white text-[#2874f0] py-4 rounded-sm font-black uppercase text-sm shadow-[0_2px_4px_0_rgba(0,0,0,0.1)] border border-gray-100 hover:shadow-md transition-all text-center block tracking-tight">
+                        <Link to="/login" className="w-full bg-white text-[#2e7d32] py-4 rounded-sm font-black uppercase text-sm shadow-[0_2px_4px_0_rgba(0,0,0,0.1)] border border-gray-100 hover:shadow-md transition-all text-center block tracking-tight">
                             Existing User? Log in
                         </Link>
                     </div>

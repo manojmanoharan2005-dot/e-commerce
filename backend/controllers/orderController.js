@@ -1,5 +1,6 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
+import { sendOrderConfirmationEmail } from '../services/mailService.js';
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -69,6 +70,9 @@ export const createOrder = async (req, res) => {
             paymentMethod: paymentMethod || 'COD',
             notes
         });
+
+        // Send order confirmation email (non-blocking)
+        sendOrderConfirmationEmail(req.user, order);
 
         res.status(201).json({
             success: true,

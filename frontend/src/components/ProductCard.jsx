@@ -30,7 +30,7 @@ const ProductCard = ({ product }) => {
             </div>
 
             <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                <ShieldCheck className="w-5 h-5 text-[#2874f0] fill-white" />
+                <ShieldCheck className="w-5 h-5 text-[#2e7d32] fill-white" />
             </div>
 
             <div className="relative aspect-[4/5] mb-4 overflow-hidden flex items-center justify-center p-2">
@@ -55,7 +55,7 @@ const ProductCard = ({ product }) => {
             </div>
 
             <div className="flex-1 flex flex-col items-start gap-1">
-                <h3 className="text-sm font-medium text-gray-800 line-clamp-2 leading-relaxed h-[40px] group-hover:text-[#2874f0]">
+                <h3 className="text-sm font-medium text-gray-800 line-clamp-2 leading-relaxed h-[40px] group-hover:text-[#2e7d32]">
                     {product.name}
                 </h3>
 
@@ -74,16 +74,16 @@ const ProductCard = ({ product }) => {
 
                 <div className="mt-2 flex items-center gap-1">
                     <img
-                        src="https://static-assets-web.flixcart.com/fk-p-linchpin-web/fk-cp-zion/img/fa_62673a.png"
-                        alt="Assured"
+                        src="/images/verified_badge.png"
+                        alt="Verified"
                         className="h-4 w-auto"
                     />
                     <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Free Delivery</span>
                 </div>
             </div>
 
-            {/* Hover Action Overlay (Optional but nice) */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#2874f0] transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+            {/* Hover Action Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#2e7d32] transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
         </Link>
     );
 };

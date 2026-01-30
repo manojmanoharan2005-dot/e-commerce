@@ -49,6 +49,11 @@ const orderSchema = new mongoose.Schema({
         enum: ['pending', 'paid', 'failed'],
         default: 'pending'
     },
+    paymentDetails: {
+        razorpay_order_id: String,
+        razorpay_payment_id: String,
+        razorpay_signature: String
+    },
     orderDate: {
         type: Date,
         default: Date.now

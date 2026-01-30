@@ -1,14 +1,12 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import connectDB from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import addressRoutes from './routes/addressRoutes.js';
-
-// Load environment variables
-dotenv.config();
+import paymentRoutes from './routes/paymentRoutes.js';
 
 // Initialize express app
 const app = express();
@@ -29,6 +27,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

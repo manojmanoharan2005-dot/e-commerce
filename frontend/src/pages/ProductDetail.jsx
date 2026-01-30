@@ -12,6 +12,7 @@ const ProductDetail = () => {
     const { isAuthenticated, user } = useAuth();
 
     const [product, setProduct] = useState(null);
+    const [relatedProducts, setRelatedProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
     const [isWishlisted, setIsWishlisted] = useState(false);
@@ -36,7 +37,14 @@ const ProductDetail = () => {
         try {
             setLoading(true);
             const response = await api.get(`/products/${id}`);
-            setProduct(response.data.data);
+            const productData = response.data.data;
+            setProduct(productData);
+
+            // Fetch related products from same category
+            const relatedRes = await api.get(`/products?category=${productData.category}`);
+            // Filter out current product and take top 5
+            const otherProducts = (relatedRes.data?.data || []).filter(p => p._id !== id);
+            setRelatedProducts(otherProducts.slice(0, 5));
         } catch (error) {
             console.error('Error fetching product:', error);
         } finally {
@@ -91,14 +99,14 @@ const ProductDetail = () => {
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-white">
-            <Loader className="w-10 h-10 text-[#2874f0] animate-spin" />
+            <Loader className="w-10 h-10 text-[#2e7d32] animate-spin" />
         </div>
     );
 
     if (!product) return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-white">
             <h2 className="text-2xl font-black text-gray-300 uppercase">Product Not Found</h2>
-            <button onClick={() => navigate('/products')} className="mt-4 text-[#2874f0] font-bold uppercase text-sm">Return to Shop</button>
+            <button onClick={() => navigate('/products')} className="mt-4 text-[#2e7d32] font-bold uppercase text-sm">Return to Shop</button>
         </div>
     );
 
@@ -177,7 +185,7 @@ const ProductDetail = () => {
                                     {product.rating || '4.5'} <Star className="w-3 h-3 fill-current" />
                                 </div>
                                 <span className="text-gray-400 font-black text-sm">{product.reviewCount || '1,250'} Ratings & 480 Reviews</span>
-                                <img src="https://static-assets-web.flixcart.com/fk-p-linchpin-web/fk-cp-zion/img/fa_62673a.png" className="h-5" alt="Assured" />
+                                <img src="/images/verified_badge.png" className="h-5" alt="Verified" />
                             </div>
                         )}
 
@@ -298,11 +306,11 @@ const ProductDetail = () => {
                         {/* AI Intelligence Block - Visible to both customers and admins for testing */}
                         <div className="bg-gray-50 border border-gray-100 rounded-sm p-6 mb-8">
                             <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2 text-[#2874f0]">
+                                <div className="flex items-center gap-2 text-[#2e7d32]">
                                     <Sparkles className="w-5 h-5 fill-current" />
                                     <h3 className="font-black text-sm uppercase italic">Agricultural Advisor AI</h3>
                                 </div>
-                                <button className="text-[10px] font-black text-[#2874f0] uppercase tracking-widest hover:underline">Beta v1.2</button>
+                                <button className="text-[10px] font-black text-[#2e7d32] uppercase tracking-widest hover:underline">Beta v1.2</button>
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -311,10 +319,10 @@ const ProductDetail = () => {
                                     placeholder="Crop Name"
                                     value={aiForm.cropType}
                                     onChange={(e) => setAiForm({ ...aiForm, cropType: e.target.value })}
-                                    className="bg-white border border-gray-200 px-3 py-2 text-xs font-black uppercase tracking-tight focus:outline-none focus:border-[#2874f0] rounded-sm col-span-2 md:col-span-1"
+                                    className="bg-white border border-gray-200 px-3 py-2 text-xs font-black uppercase tracking-tight focus:outline-none focus:border-[#2e7d32] rounded-sm col-span-2 md:col-span-1"
                                 />
                                 <select
-                                    className="bg-white border border-gray-200 px-3 py-2 text-xs font-black uppercase tracking-tight focus:outline-none focus:border-[#2874f0] rounded-sm"
+                                    className="bg-white border border-gray-200 px-3 py-2 text-xs font-black uppercase tracking-tight focus:outline-none focus:border-[#2e7d32] rounded-sm"
                                     value={aiForm.soilType}
                                     onChange={(e) => setAiForm({ ...aiForm, soilType: e.target.value })}
                                 >
@@ -326,7 +334,7 @@ const ProductDetail = () => {
                                     <option value="Red">Red Soil</option>
                                 </select>
                                 <select
-                                    className="bg-white border border-gray-200 px-3 py-2 text-xs font-black uppercase tracking-tight focus:outline-none focus:border-[#2874f0] rounded-sm"
+                                    className="bg-white border border-gray-200 px-3 py-2 text-xs font-black uppercase tracking-tight focus:outline-none focus:border-[#2e7d32] rounded-sm"
                                     value={aiForm.season}
                                     onChange={(e) => setAiForm({ ...aiForm, season: e.target.value })}
                                 >
@@ -346,8 +354,8 @@ const ProductDetail = () => {
                             </div>
 
                             {aiAdvice && (
-                                <div className="bg-[#f0f5ff] p-4 rounded-sm border border-[#2874f0]/10 animate-fade-in">
-                                    <p className="text-xs font-black text-[#2874f0] uppercase mb-2">Recommendation</p>
+                                <div className="bg-green-50 p-4 rounded-sm border border-[#2e7d32]/10 animate-fade-in">
+                                    <p className="text-xs font-black text-[#2e7d32] uppercase mb-2">Recommendation</p>
                                     <p className="text-sm font-bold text-gray-700 leading-relaxed mb-4">{aiAdvice.suitabilityReason}</p>
                                     <div className="flex gap-4">
                                         <div className="bg-white px-3 py-2 rounded-sm border border-gray-100 flex-1">
@@ -385,6 +393,34 @@ const ProductDetail = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Related Products */}
+                        {relatedProducts.length > 0 && (
+                            <div className="mt-12 pt-8 border-t border-gray-100">
+                                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-[#2e7d32]" />
+                                    Related Products
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                    {relatedProducts.map(rp => (
+                                        <Link
+                                            key={rp._id}
+                                            to={`/products/${rp._id}`}
+                                            className="group flex flex-col p-4 border border-gray-50 rounded-sm hover:border-green-100 hover:shadow-lg transition-all"
+                                        >
+                                            <div className="w-full aspect-square mb-4">
+                                                <img src={rp.imageUrl} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform" alt={rp.name} />
+                                            </div>
+                                            <p className="text-xs font-black text-gray-900 group-hover:text-[#2e7d32] line-clamp-1 mb-1 italic">{rp.name}</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[#388e3c] font-black text-sm">₹{rp.price}</span>
+                                                <span className="text-gray-400 text-[10px] line-through">₹{rp.mrp}</span>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                     </div>
                 </div>
