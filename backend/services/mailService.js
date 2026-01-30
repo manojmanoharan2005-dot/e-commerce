@@ -39,7 +39,7 @@ export const sendOrderConfirmationEmail = async (user, order) => {
         `).join('');
 
         const mailOptions = {
-            from: `"FertilizerMart" <${process.env.MAIL_USER}>`,
+            from: `"Smart Farming Assistant" <${process.env.MAIL_FROM || process.env.MAIL_USER}>`,
             to: user.email,
             subject: `Order Confirmed - #${order._id.toString().slice(-6).toUpperCase()}`,
             html: `
