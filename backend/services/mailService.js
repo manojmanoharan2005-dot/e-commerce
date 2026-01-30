@@ -14,9 +14,11 @@ export const sendOrderConfirmationEmail = async (user, order) => {
             return;
         }
 
-        // Create transporter dynamically to ensure latest env variables are used
+        // Create transporter with explicit configuration for better reliability on cloud platforms
         const transporter = nodemailer.createTransport({
-            service: process.env.MAIL_SERVICE || 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true, // use SSL
             auth: {
                 user: process.env.MAIL_USER,
                 pass: process.env.MAIL_PASS
