@@ -339,6 +339,23 @@ const AdminDashboard = () => {
                                                         </div>
                                                         <p className="text-lg font-black text-gray-900 leading-tight">{order.userId?.name}</p>
                                                         <p className="text-xs font-bold text-gray-500 mt-1">{order.userId?.phone || order.userId?.email}</p>
+                                                        <div className="mt-2 flex items-center gap-2">
+                                                            <span className={`text-[8px] font-black px-2 py-1 rounded uppercase tracking-wider ${order.paymentMethod === 'Online' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                                                                {order.paymentMethod === 'Online' ? '💳 PREPAID' : '💵 COD'}
+                                                            </span>
+                                                            {order.status === 'cancelled' && order.paymentMethod === 'Online' && (
+                                                                <span className={`text-[8px] font-black px-2 py-1 rounded uppercase tracking-wider ${order.refundStatus === 'processed' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                                                        order.refundStatus === 'pending' ? 'bg-purple-50 text-purple-600 border border-purple-100' :
+                                                                            order.refundStatus === 'failed' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                                                                'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                                                    }`}>
+                                                                    {order.refundStatus === 'processed' ? '✓ REFUNDED' :
+                                                                        order.refundStatus === 'pending' ? '⏳ REFUND PENDING' :
+                                                                            order.refundStatus === 'failed' ? '⚠ REFUND FAILED' :
+                                                                                '💰 REFUND INITIATED'}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
 
                                                     {/* Items Summary */}

@@ -12,6 +12,15 @@ const Header = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     useEffect(() => {
         const timer = setTimeout(async () => {
@@ -46,44 +55,44 @@ const Header = () => {
     };
 
     return (
-        <header className="bg-white shadow-sm sticky top-0 z-50">
-            {/* Top Bar - Agriculture Green */}
-            <div className="bg-[#2e7d32] h-14 lg:h-16 flex items-center">
-                <div className="container mx-auto px-4 md:px-0 lg:max-w-7xl flex items-center justify-between gap-4 lg:gap-8">
-                    {/* Logo */}
-                    <Link to="/" className="flex flex-col items-start min-w-max">
-                        <div className="flex items-center gap-1 italic">
-                            <h1 className="text-xl font-black text-white">FertilizerMart</h1>
+        <header className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-lg shadow-lg py-2' : 'bg-white py-4'}`}>
+            <div className="container mx-auto px-4 lg:max-w-7xl">
+                <div className="flex items-center justify-between gap-8">
+                    {/* Logo - Modern & Minimalist */}
+                    <Link to="/" className="flex items-center gap-2 group">
+                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform duration-300 shadow-lg shadow-primary/20">
+                            <Sprout className="w-6 h-6 text-accent" />
                         </div>
-                        <p className="text-[10px] text-white/80 font-bold italic -mt-1 hover:text-white transition-colors">
-                            Explore <span className="text-[#ffe500]">Agri Prime</span> ✦
-                        </p>
+                        <div className="flex flex-col">
+                            <span className="text-xl font-black tracking-tight text-primary leading-none">Agri<span className="text-accent text-gradient">Store</span></span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Premium Quality</span>
+                        </div>
                     </Link>
 
-                    {/* Search Bar */}
-                    <form onSubmit={handleSearch} className="flex-1 max-w-2xl relative group">
-                        <div className="relative">
+                    {/* Search Bar - Sophisticated */}
+                    <form onSubmit={handleSearch} className="flex-1 max-w-xl relative hidden md:block group">
+                        <div className="relative overflow-hidden rounded-2xl bg-slate-100 border border-transparent focus-within:border-accent/30 focus-within:bg-white focus-within:shadow-xl focus-within:shadow-accent/5 transition-all duration-300">
                             <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search for products, brands and more"
-                                className="w-full bg-white px-4 py-2 rounded shadow-sm text-sm focus:outline-none placeholder:text-gray-500"
+                                placeholder="Search premium products..."
+                                className="w-full bg-transparent px-5 py-3 text-sm focus:outline-none placeholder:text-slate-400 font-medium"
                             />
                             <button
                                 type="submit"
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center rounded-xl bg-primary text-white hover:bg-primary-dark transition-colors shadow-lg shadow-primary/20"
                             >
-                                <Search className="w-5 h-5" />
+                                <Search className="w-4 h-4" />
                             </button>
                         </div>
 
                         {/* Search Results Dropdown */}
                         {(isSearching || searchResults.length > 0) && (
-                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-b-sm border-t border-gray-50 overflow-hidden z-[100] mt-0.5">
+                            <div className="absolute top-full left-0 w-full bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden z-[100] mt-3 animate-fade-in">
                                 {isSearching && (
-                                    <div className="p-4 text-center">
-                                        <div className="w-5 h-5 border-2 border-[#2e7d32] border-t-transparent rounded-full animate-spin mx-auto"></div>
+                                    <div className="p-6 text-center">
+                                        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto"></div>
                                     </div>
                                 )}
                                 {!isSearching && searchResults.map(p => (
@@ -91,82 +100,85 @@ const Header = () => {
                                         key={p._id}
                                         to={`/products/${p._id}`}
                                         onClick={() => setSearchQuery('')}
-                                        className="flex items-center gap-4 p-3 hover:bg-gray-50 transition-colors border-b border-gray-50 last:border-0"
+                                        className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 group"
                                     >
-                                        <img src={p.imageUrl} className="w-10 h-10 object-contain mix-blend-multiply" />
-                                        <div className="flex-1">
-                                            <p className="text-sm font-bold text-gray-800 line-clamp-1 italic">{p.name}</p>
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase">{p.category}</p>
+                                        <div className="w-12 h-12 bg-white rounded-lg p-1 border border-slate-100 flex items-center justify-center">
+                                            <img src={p.imageUrl} className="max-w-full max-h-full object-contain" />
                                         </div>
-                                        <span className="text-[#388e3c] font-black text-xs">₹{p.price}</span>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-bold text-slate-900 group-hover:text-accent transition-colors">{p.name}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{p.category}</p>
+                                        </div>
+                                        <span className="text-primary font-black text-sm">₹{p.price}</span>
                                     </Link>
                                 ))}
                             </div>
                         )}
                     </form>
 
-                    {/* Desktop Navigation */}
-                    <div className="flex items-center space-x-8 text-white">
+                    {/* Navigation Actions */}
+                    <div className="flex items-center gap-3 lg:gap-6">
                         {isAuthenticated ? (
-                            <div className="flex items-center space-x-6">
+                            <div className="flex items-center gap-4">
                                 {isAdmin && (
-                                    <Link to="/admin" className="flex items-center space-x-2 font-bold hover:text-[#ffe500]">
+                                    <Link to="/admin" className="hidden lg:flex items-center gap-2 text-primary font-bold hover:text-accent transition-colors">
                                         <LayoutDashboard className="w-5 h-5" />
-                                        <span>Dashboard</span>
+                                        <span className="text-sm">Dashboard</span>
                                     </Link>
                                 )}
 
                                 <div className="relative group">
-                                    <button className="flex items-center space-x-2 bg-white text-[#2e7d32] px-8 py-1.5 rounded-sm font-bold shadow transition-all hover:bg-gray-50">
-                                        <span>{isAdmin ? 'Admin' : (user?.name || 'User').split(' ')[0]}</span>
-                                        <svg className="w-2.5 h-2.5 fill-current transition-transform group-hover:rotate-180" viewBox="0 0 10 7">
-                                            <path d="M5 7L0 0h10z" />
-                                        </svg>
+                                    <button className="flex items-center gap-3 bg-white border border-slate-200 pl-2 pr-4 py-1.5 rounded-2xl hover:border-accent hover:shadow-lg hover:shadow-accent/5 transition-all group">
+                                        <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-primary group-hover:bg-accent group-hover:text-white transition-colors">
+                                            <User className="w-4 h-4" />
+                                        </div>
+                                        <span className="text-sm font-bold text-slate-700">{isAdmin ? 'Admin' : (user?.username || user?.name || 'User')}</span>
                                     </button>
+
                                     {/* Dropdown Menu */}
-                                    <div className="absolute top-full right-0 mt-2 w-48 bg-white text-gray-800 shadow-xl rounded py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all border border-gray-100">
+                                    <div className="absolute top-full right-0 mt-3 w-56 bg-white shadow-2xl rounded-2xl py-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all border border-slate-100 z-50 transform translate-y-2 group-hover:translate-y-0">
                                         {!isAdmin && (
-                                            <Link to="/profile" className="block px-4 py-3 hover:bg-gray-50 border-b border-gray-100 flex items-center gap-3">
-                                                <User className="w-4 h-4 text-primary" />
+                                            <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-slate-600 hover:text-primary hover:bg-slate-50 transition-colors font-medium">
+                                                <User className="w-4 h-4" />
                                                 <span>My Profile</span>
                                             </Link>
                                         )}
-                                        <button onClick={handleLogout} className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3">
-                                            <LogOut className="w-4 h-4 text-primary" />
-                                            <span>Logout</span>
+                                        <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 transition-colors font-medium border-t border-slate-50 mt-1">
+                                            <LogOut className="w-4 h-4" />
+                                            <span>Sign Out</span>
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         ) : (
-                            <Link to="/login" className="bg-white text-[#2e7d32] px-8 py-1.5 rounded-sm font-bold shadow transition-all hover:bg-gray-50">
-                                Login
+                            <Link to="/login" className="bg-primary text-white px-8 py-2.5 rounded-2xl font-bold shadow-lg shadow-primary/20 hover:bg-primary-dark transition-all transform hover:-translate-y-0.5 active:scale-95 text-sm">
+                                Sign In
                             </Link>
                         )}
 
                         {!isAdmin && (
-                            <Link to="/cart" className="flex items-center space-x-2 font-bold hover:text-[#ffe500] relative">
-                                <div className="relative">
+                            <Link to="/cart" className="relative group p-2">
+                                <div className="p-2 bg-slate-100 rounded-2xl group-hover:bg-accent group-hover:text-white transition-all duration-300">
                                     <ShoppingCart className="w-5 h-5" />
-                                    {getCartCount() > 0 && (
-                                        <span className="absolute -top-2 -right-2 bg-[#ff6161] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center animate-pulse border-2 border-[#2e7d32]">
-                                            {getCartCount()}
-                                        </span>
-                                    )}
                                 </div>
-                                <span className="hidden lg:inline">Cart</span>
+                                {getCartCount() > 0 && (
+                                    <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white shadow-lg animate-bounce">
+                                        {getCartCount()}
+                                    </span>
+                                )}
                             </Link>
                         )}
 
-                        <Link to="#" className="hidden xl:flex items-center space-x-2 font-bold hover:text-[#ffe500]">
-                            <Sprout className="w-5 h-5" />
-                            <span>Become a Seller</span>
-                        </Link>
+                        {/* Mobile Search Toggle (Optional improvement) */}
+                        <button className="md:hidden p-2 text-slate-600">
+                            <Search className="w-6 h-6" />
+                        </button>
                     </div>
                 </div>
             </div>
         </header>
     );
 };
+
 
 export default Header;

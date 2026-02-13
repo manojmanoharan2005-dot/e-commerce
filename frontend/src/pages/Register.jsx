@@ -12,12 +12,14 @@ const Register = () => {
         phone: '',
         state: '',
         district: '',
-        pincode: ''
+        pincode: '',
+        taluk: ''
     });
     const [pincodeLoading, setPincodeLoading] = useState(false);
     const [districts, setDistricts] = useState([]);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [derivedLocation, setDerivedLocation] = useState('');
     const { register, isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
 
@@ -40,18 +42,37 @@ const Register = () => {
             const data = await response.json();
 
             if (data[0].Status === 'Success') {
-                const { State, District } = data[0].PostOffice[0];
+                const postOffices = data[0].PostOffice;
 
-                // Map API state name to our locationsData state name if necessary (usually they match)
+                // Optimized Taluk/Town Detection:
+                // 1. Find the official "Sub Post Office" (this is almost always the Taluk head)
+                const subOffice = postOffices.find(po => po.BranchType === 'Sub Post Office');
+
+                // 2. If we found a Sub Post Office, use its Name as the Taluk.
+                // 3. Otherwise, use the Block (but only if it's not the same as the District)
+                // 4. Final fallback to the Name of the first entry
+                let taluk = '';
+                if (subOffice) {
+                    taluk = subOffice.Name;
+                } else {
+                    const first = postOffices[0];
+                    taluk = (first.Block && first.Block !== first.District) ? first.Block : first.Name;
+                }
+
+                const { State, District } = postOffices[0];
+
                 setFormData(prev => ({
                     ...prev,
                     state: State,
-                    district: District
+                    district: District,
+                    taluk: taluk
                 }));
 
                 // Update districts list for the dropdown
                 const stateObj = locationsData.states.find(s => s.state === State);
                 setDistricts(stateObj ? stateObj.districts : [District]);
+            } else {
+                setDerivedLocation('Invalid Pincode');
             }
         } catch (err) {
             console.error('Pincode fetch error:', err);
@@ -72,6 +93,8 @@ const Register = () => {
 
         if (name === 'pincode' && value.length === 6) {
             fetchLocationByPincode(value);
+        } else if (name === 'pincode') {
+            setDerivedLocation('');
         }
     };
 
@@ -193,18 +216,14 @@ const Register = () => {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
-                                    <select
-                                        name="state"
-                                        required
-                                        value={formData.state}
-                                        onChange={handleChange}
-                                        className="w-full py-2 bg-transparent focus:outline-none transition-all text-sm font-medium text-gray-700 cursor-pointer"
-                                    >
-                                        <option value="">Select State</option>
-                                        {locationsData.states.map(s => (
-                                            <option key={s.state} value={s.state}>{s.state}</option>
-                                        ))}
-                                    </select>
+                                    <input
+                                        type="text"
+                                        name="taluk"
+                                        readOnly
+                                        value={formData.taluk}
+                                        className="w-full py-2 bg-transparent focus:outline-none transition-all placeholder:text-gray-400 text-sm font-black italic text-[#2e7d32]"
+                                        placeholder="Taluk"
+                                    />
                                 </div>
 
                                 <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
@@ -217,11 +236,26 @@ const Register = () => {
                                         className="w-full py-2 bg-transparent focus:outline-none transition-all text-sm font-medium text-gray-700 cursor-pointer disabled:opacity-50"
                                     >
                                         <option value="">Select District</option>
-                                        {districts.map(d => (
-                                            <option key={d} value={d}>{d}</option>
+                                        {districts.map((d, i) => (
+                                            <option key={i} value={d}>{d}</option>
                                         ))}
                                     </select>
                                 </div>
+                            </div>
+
+                            <div className="relative border-b border-gray-300 focus-within:border-[#2e7d32] group transition-all">
+                                <select
+                                    name="state"
+                                    required
+                                    value={formData.state}
+                                    onChange={handleChange}
+                                    className="w-full py-2 bg-transparent focus:outline-none transition-all text-sm font-medium text-gray-700 cursor-pointer"
+                                >
+                                    <option value="">Select State</option>
+                                    {locationsData.states.map((s, i) => (
+                                        <option key={i} value={s.state}>{s.state}</option>
+                                    ))}
+                                </select>
                             </div>
 
 

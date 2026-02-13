@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { Sprout, ShieldCheck, Sparkles, MapPin } from 'lucide-react';
 import Header from './components/Header';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -10,7 +11,7 @@ import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import MyOrders from './pages/MyOrders';
 import Profile from './pages/Profile';
-import Wishlist from './pages/Wishlist';
+
 import Settings from './pages/Settings';
 import Addresses from './pages/Addresses';
 import AdminDashboard from './pages/AdminDashboard';
@@ -64,7 +65,7 @@ const HomeRoute = () => {
     return <Products />;
   }
 
-  return <Home />;
+  return <Products />;
 };
 
 function AppContent() {
@@ -103,14 +104,7 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/wishlist"
-              element={
-                <ProtectedRoute userOnly>
-                  <Wishlist />
-                </ProtectedRoute>
-              }
-            />
+
             <Route
               path="/settings"
               element={
@@ -149,15 +143,33 @@ function AppContent() {
 
         <NotificationTicker />
 
-        {/* Footer */}
-        <footer className="bg-gray-900 text-white py-8 mt-auto">
-          <div className="container mx-auto px-4 text-center">
-            <p className="text-gray-400">
-              © 2026 FertilizerMart - AI-Powered Agricultural Solutions
-            </p>
-            <p className="text-sm text-gray-500 mt-2">
-              Empowering farmers with intelligent shopping
-            </p>
+        {/* Premium Footer */}
+        <footer className="bg-primary text-white py-16 mt-auto border-t border-white/5 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent"></div>
+          <div className="container mx-auto px-4 lg:max-w-7xl relative z-10">
+            <div className="flex flex-col items-center text-center">
+              <div className="flex items-center gap-2 mb-6 group">
+                <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center group-hover:rotate-12 transition-transform">
+                  <Sprout className="w-5 h-5 text-accent" />
+                </div>
+                <span className="text-2xl font-black tracking-tight italic">Agri<span className="text-accent">Store</span></span>
+              </div>
+
+              <div className="max-w-md mx-auto space-y-4">
+                <p className="text-slate-400 text-xs font-black uppercase tracking-[0.3em] leading-relaxed">
+                  © 2026 AgriStore <span className="text-white/20 mx-2">|</span> High-Yield Agricultural Solutions
+                </p>
+                <p className="text-slate-500 text-[10px] font-medium tracking-wide italic">
+                  Empowering the future of agriculture through precision supply chain and intelligent resource management.
+                </p>
+              </div>
+
+              <div className="mt-8 flex items-center gap-6 opacity-30">
+                <ShieldCheck className="w-5 h-5" />
+                <Sparkles className="w-5 h-5" />
+                <MapPin className="w-5 h-5" />
+              </div>
+            </div>
           </div>
         </footer>
       </div>

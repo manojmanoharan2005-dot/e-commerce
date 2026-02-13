@@ -1,18 +1,63 @@
 import React, { useState } from 'react';
 import UserSidebar from '../components/UserSidebar';
 import { useAuth } from '../context/AuthContext';
-import { Loader } from 'lucide-react';
+import { Loader, User as UserIcon, Mail, Phone, Shield, Sparkles, AlertCircle, ChevronRight } from 'lucide-react';
 import api from '../utils/api';
 
+const ProfileField = ({ label, formData, setFormData, isEditing, setEditSection, field, icon: Icon, type = "text", editable = true, handleSave, loading }) => {
+    return (
+        <div className={`p-8 rounded-[2rem] border transition-all duration-300 ${isEditing ? 'bg-white border-accent shadow-2xl shadow-accent/5 ring-1 ring-accent/20' : 'bg-white border-slate-100 shadow-lg shadow-slate-200/50'}`}>
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${isEditing ? 'bg-accent/10 text-accent' : 'bg-slate-50 text-slate-400'}`}>
+                        <Icon className="w-4 h-4" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">{label}</span>
+                </div>
+                {editable && (
+                    <button
+                        type="button"
+                        onClick={() => setEditSection(isEditing ? null : field)}
+                        className={`text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full transition-all ${isEditing ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-primary/5 text-primary hover:bg-primary hover:text-white'}`}
+                    >
+                        {isEditing ? 'Cancel' : 'Edit'}
+                    </button>
+                )}
+            </div>
+
+            <div className="relative">
+                <input
+                    type={type}
+                    value={formData[field]}
+                    onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
+                    disabled={!isEditing}
+                    className={`w-full bg-transparent text-xl font-black italic tracking-tight outline-none ${isEditing ? 'text-primary cursor-text' : 'text-slate-400 cursor-not-allowed'}`}
+                />
+                {isEditing && (
+                    <div className="mt-6 flex justify-end">
+                        <button
+                            type="button"
+                            onClick={() => handleSave(field)}
+                            disabled={loading}
+                            className="bg-primary text-white px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 flex items-center gap-2 hover:scale-105 transition-all"
+                        >
+                            {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Save Changes'}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const Profile = () => {
-    const { user, updateUser } = useAuth();
-    const [editPersonal, setEditPersonal] = useState(false);
-    const [editEmail, setEditEmail] = useState(false);
-    const [editMobile, setEditMobile] = useState(false);
+    const { user, updateUser, logout } = useAuth();
+    const [editSection, setEditSection] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState({
         name: user?.name || '',
+        username: user?.username || '',
         email: user?.email || '',
         phone: user?.phone || ''
     });
@@ -21,6 +66,7 @@ const Profile = () => {
         if (user) {
             setFormData({
                 name: user.name || '',
+                username: user.username || '',
                 email: user.email || '',
                 phone: user.phone || ''
             });
@@ -34,9 +80,7 @@ const Profile = () => {
 
             if (response.data.success) {
                 updateUser(response.data.data);
-                if (section === 'personal') setEditPersonal(false);
-                if (section === 'email') setEditEmail(false);
-                if (section === 'mobile') setEditMobile(false);
+                setEditSection(null);
             }
         } catch (error) {
             console.error('Update profile error:', error);
@@ -46,155 +90,97 @@ const Profile = () => {
         }
     };
 
-    return (
-        <div className="min-h-screen bg-[#f1f3f6] py-4">
-            <div className="container mx-auto px-4 lg:max-w-7xl">
-                <div className="flex flex-col lg:flex-row gap-4 items-start">
+    const handleDeleteAccount = async () => {
+        if (window.confirm('Are you absolutely sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.')) {
+            try {
+                setLoading(true);
+                const response = await api.delete('/auth/account');
+                if (response.data.success) {
+                    alert('Your account has been successfully deleted.');
+                    logout();
+                }
+            } catch (error) {
+                console.error('Delete account error:', error);
+                alert(error.response?.data?.message || 'Failed to delete account');
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
 
-                    {/* Left Side: Account Sidebar */}
-                    <div className="lg:w-72 shrink-0 w-full">
+    return (
+        <div className="min-h-screen bg-slate-50 pb-20 pt-8">
+            <div className="container mx-auto px-4 lg:max-w-7xl">
+                <div className="flex flex-col lg:flex-row gap-8 items-start">
+
+                    <div className="lg:w-80 shrink-0 w-full">
                         <UserSidebar />
                     </div>
 
-                    {/* Right Side: Profile Details */}
-                    <div className="flex-1 w-full bg-white shadow-sm rounded-sm p-8 pb-20">
-
-                        {/* Personal Information */}
-                        <div className="max-w-2xl">
-                            <div className="flex items-center gap-6 mb-8 mt-4">
-                                <h2 className="text-lg font-black text-gray-900 leading-none">Personal Information</h2>
-                                <button
-                                    onClick={() => setEditPersonal(!editPersonal)}
-                                    className="text-[#2874f0] text-sm font-black hover:underline uppercase transition-all"
-                                >
-                                    {editPersonal ? 'Cancel' : 'Edit'}
-                                </button>
-                            </div>
-
-                            <div className="flex flex-col md:flex-row gap-4 mb-6">
-                                <div className={`flex flex-col gap-2 flex-1 ${editPersonal ? 'border-[#2874f0]' : 'bg-gray-50 border-gray-100'} border p-3 rounded-sm`}>
-                                    <label className="text-[10px] text-gray-400 font-bold uppercase tracking-widest pl-1">Full Name</label>
-                                    <input
-                                        type="text"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        disabled={!editPersonal}
-                                        className="bg-transparent text-sm font-black text-gray-900 outline-none px-1"
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-2 flex-1 md:invisible"></div>
-                            </div>
-
-                            {editPersonal && (
-                                <button
-                                    onClick={() => handleSave('personal')}
-                                    disabled={loading}
-                                    className="bg-[#2874f0] text-white px-12 py-3 rounded-sm font-black uppercase text-sm shadow-md mb-8 flex items-center gap-2"
-                                >
-                                    {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Save'}
-                                </button>
-                            )}
-
-                            {/* Gender Section */}
-                            <div className="mb-14">
-                                <p className="text-sm font-black text-gray-900 mb-4 uppercase tracking-tighter">Your Gender</p>
-                                <div className="flex gap-8">
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input type="radio" name="gender" defaultChecked className="w-4 h-4 text-[#2874f0]" disabled={!editPersonal} />
-                                        <span className="text-sm font-medium text-gray-700">Male</span>
-                                    </label>
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input type="radio" name="gender" className="w-4 h-4 text-[#2874f0]" disabled={!editPersonal} />
-                                        <span className="text-sm font-medium text-gray-700">Female</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            {/* Email Address Section */}
-                            <div className="mb-14">
-                                <div className="flex items-center gap-6 mb-6">
-                                    <h2 className="text-lg font-black text-gray-900 leading-none">Email Address</h2>
-                                    <button
-                                        onClick={() => setEditEmail(!editEmail)}
-                                        className="text-[#2874f0] text-sm font-black hover:underline uppercase"
-                                    >
-                                        {editEmail ? 'Cancel' : 'Edit'}
-                                    </button>
-                                </div>
-                                <div className="flex flex-col gap-4">
-                                    <div className={`flex flex-col gap-2 max-w-sm ${editEmail ? 'border-[#2874f0]' : 'bg-gray-50 border-gray-100'} border p-3 rounded-sm`}>
-                                        <label className="text-[10px] text-gray-400 font-bold uppercase tracking-widest pl-1">Email ID</label>
-                                        <input
-                                            type="email"
-                                            value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            disabled={!editEmail}
-                                            className="bg-transparent text-sm font-black text-gray-900 outline-none px-1"
-                                        />
+                    <div className="flex-1 w-full space-y-8">
+                        {/* Hero Welcome Card */}
+                        <div className="bg-primary rounded-[3rem] p-10 lg:p-14 text-white shadow-2xl shadow-primary/30 relative overflow-hidden group">
+                            <div className="relative z-10">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20">
+                                        <Sparkles className="w-6 h-6 text-accent fill-accent" />
                                     </div>
-                                    {editEmail && (
-                                        <button
-                                            onClick={() => handleSave('email')}
-                                            disabled={loading}
-                                            className="bg-[#2874f0] text-white px-12 py-3 rounded-sm font-black uppercase text-sm shadow-md w-fit flex items-center gap-2"
-                                        >
-                                            {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Save'}
-                                        </button>
-                                    )}
+                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent">Your Profile</span>
                                 </div>
+                                <h1 className="text-4xl lg:text-5xl font-black italic tracking-tighter mb-4 leading-none">Profile <span className="text-white/50">&</span> Security</h1>
+                                <p className="text-white/60 font-medium max-w-lg leading-relaxed">Manage your personal information and account settings for AgriStore.</p>
                             </div>
+                            <Shield className="w-80 h-80 absolute -bottom-20 -right-20 text-white/5 rotate-12" />
+                        </div>
 
-                            {/* Mobile Number Section */}
-                            <div className="mb-14">
-                                <div className="flex items-center gap-6 mb-6">
-                                    <h2 className="text-lg font-black text-gray-900 leading-none">Mobile Number</h2>
-                                    <button
-                                        onClick={() => setEditMobile(!editMobile)}
-                                        className="text-[#2874f0] text-sm font-black hover:underline uppercase"
-                                    >
-                                        {editMobile ? 'Cancel' : 'Edit'}
-                                    </button>
-                                </div>
-                                <div className="flex flex-col gap-4">
-                                    <div className={`flex flex-col gap-2 max-w-sm ${editMobile ? 'border-[#2874f0]' : 'bg-gray-50 border-gray-100'} border p-3 rounded-sm`}>
-                                        <label className="text-[10px] text-gray-400 font-bold uppercase tracking-widest pl-1">Phone Number</label>
-                                        <input
-                                            type="tel"
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            disabled={!editMobile}
-                                            className="bg-transparent text-sm font-black text-gray-900 outline-none px-1"
-                                        />
-                                    </div>
-                                    {editMobile && (
-                                        <button
-                                            onClick={() => handleSave('mobile')}
-                                            disabled={loading}
-                                            className="bg-[#2874f0] text-white px-12 py-3 rounded-sm font-black uppercase text-sm shadow-md w-fit flex items-center gap-2"
-                                        >
-                                            {loading ? <Loader className="w-4 h-4 animate-spin" /> : 'Save'}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <ProfileField
+                                label="Full Name"
+                                field="name"
+                                icon={UserIcon}
+                                formData={formData}
+                                setFormData={setFormData}
+                                isEditing={editSection === 'name'}
+                                setEditSection={setEditSection}
+                                handleSave={handleSave}
+                                loading={loading}
+                            />
 
-                            {/* FAQ Section Placeholder */}
-                            <div className="mt-20 border-t border-gray-100 pt-10">
-                                <h3 className="text-base font-black text-gray-900 mb-6 uppercase tracking-tight">FAQS</h3>
-                                <div className="space-y-6">
-                                    <div>
-                                        <p className="text-sm font-black text-gray-900 mb-1">What happens when I update my email address (or mobile number)?</p>
-                                        <p className="text-sm text-gray-500 leading-relaxed">Your login email id (or mobile number) changes, likewise. You'll receive all your future order communications and security-related updates on your new email id (or mobile number).</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-black text-gray-900 mb-1">When will my FertilizerMart account be updated with the new email address (or mobile number)?</p>
-                                        <p className="text-sm text-gray-500 leading-relaxed">It happens as soon as you confirm the verification code sent to your new email (or mobile) and save the changes.</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <ProfileField
+                                label="Email Address"
+                                field="email"
+                                icon={Mail}
+                                type="email"
+                                formData={formData}
+                                setFormData={setFormData}
+                                isEditing={editSection === 'email'}
+                                setEditSection={setEditSection}
+                                handleSave={handleSave}
+                                loading={loading}
+                            />
+                            <ProfileField
+                                label="Phone Number"
+                                field="phone"
+                                icon={Phone}
+                                type="tel"
+                                formData={formData}
+                                setFormData={setFormData}
+                                isEditing={editSection === 'phone'}
+                                setEditSection={setEditSection}
+                                handleSave={handleSave}
+                                loading={loading}
+                            />
 
-                            <button className="mt-12 text-sm font-black text-red-500 uppercase hover:underline tracking-widest">
-                                Deactivate Account
+                        </div>
+
+                        <div className="flex justify-center pt-10">
+                            <button
+                                onClick={handleDeleteAccount}
+                                disabled={loading}
+                                className="text-[10px] font-black text-rose-400 uppercase tracking-[0.3em] hover:text-rose-600 transition-colors flex items-center gap-2 group disabled:opacity-50"
+                            >
+                                <AlertCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                {loading ? 'Processing...' : 'Delete My Account'}
                             </button>
                         </div>
                     </div>

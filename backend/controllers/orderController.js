@@ -1,6 +1,8 @@
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
-import { sendOrderConfirmationEmail } from '../services/mailService.js';
+import { sendOrderConfirmationEmail, sendStatusUpdateEmail } from '../services/mailService.js';
+import getRazorpayInstance from '../utils/razorpay.js';
+import { sendRefundConfirmationEmail } from '../services/refundMailService.js';
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -51,6 +53,7 @@ export const createOrder = async (req, res) => {
             orderItems.push({
                 productId: product._id,
                 name: product.name,
+                manufacturer: product.manufacturer,
                 price: product.price,
                 quantity: item.quantity,
                 subtotal: subtotal
@@ -204,11 +207,7 @@ export const updateOrderStatus = async (req, res) => {
     try {
         const { status } = req.body;
 
-        const order = await Order.findByIdAndUpdate(
-            req.params.id,
-            { status },
-            { new: true, runValidators: true }
-        );
+        const order = await Order.findById(req.params.id);
 
         if (!order) {
             return res.status(404).json({
@@ -217,10 +216,76 @@ export const updateOrderStatus = async (req, res) => {
             });
         }
 
+        const previousStatus = order.status;
+
+        // If admin is cancelling the order, process refund and restock
+        if (status === 'cancelled' && previousStatus !== 'cancelled') {
+            // Restock products
+            for (const item of order.items) {
+                await Product.findByIdAndUpdate(item.productId, {
+                    $inc: { stock: item.quantity }
+                });
+            }
+
+            // Process refund for online payments
+            if (order.paymentMethod === 'Online' && order.paymentStatus === 'paid' && order.paymentDetails?.razorpay_payment_id) {
+                try {
+                    const rzp = getRazorpayInstance();
+                    if (rzp) {
+                        console.log(`🔄 Admin cancellation - Initiating refund for payment: ${order.paymentDetails.razorpay_payment_id}`);
+
+                        const refund = await rzp.payments.refund(order.paymentDetails.razorpay_payment_id, {
+                            amount: order.totalAmount * 100, // Amount in paise
+                            speed: 'normal',
+                            notes: {
+                                order_id: order._id.toString(),
+                                reason: 'Order cancelled by admin'
+                            }
+                        });
+
+                        console.log(`✅ Refund initiated successfully: ${refund.id}`);
+
+                        order.paymentDetails.razorpay_refund_id = refund.id;
+                        order.refundStatus = 'processed';
+                    } else {
+                        console.warn('⚠️ Razorpay not configured. Refund not processed.');
+                        order.refundStatus = 'pending';
+                    }
+                } catch (refundError) {
+                    console.error('❌ Refund Error:', refundError);
+                    order.refundStatus = 'failed';
+                }
+            }
+        }
+
+        order.status = status;
+        await order.save();
+
+        // Populate user data for notifications
+        const populatedOrder = await Order.findById(order._id).populate('userId');
+
+        if (populatedOrder && populatedOrder.userId) {
+            const user = populatedOrder.userId;
+
+            // Send refund confirmation email if admin cancelled with refund
+            if (status === 'cancelled' && order.refundStatus === 'processed') {
+                sendRefundConfirmationEmail(user, populatedOrder);
+            }
+
+            // Send status update email for other status changes
+            if (['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].includes(status)) {
+                // If it was already handled by refund email, maybe skip? 
+                // Actually, status update email is good even for cancellation.
+                sendStatusUpdateEmail(user, populatedOrder, status);
+            }
+        }
+
         res.json({
             success: true,
             data: order,
-            message: 'Order status updated successfully'
+            message: status === 'cancelled' && order.refundStatus === 'processed'
+                ? 'Order cancelled and refund initiated successfully'
+                : 'Order status updated successfully'
         });
     } catch (error) {
         console.error('Update order status error:', error);
@@ -268,13 +333,54 @@ export const cancelOrder = async (req, res) => {
             });
         }
 
+        // Process refund for online payments
+        if (order.paymentMethod === 'Online' && order.paymentStatus === 'paid' && order.paymentDetails?.razorpay_payment_id) {
+            try {
+                const rzp = getRazorpayInstance();
+                if (rzp) {
+                    console.log(`🔄 Initiating refund for payment: ${order.paymentDetails.razorpay_payment_id}`);
+
+                    const refund = await rzp.payments.refund(order.paymentDetails.razorpay_payment_id, {
+                        amount: order.totalAmount * 100, // Amount in paise
+                        speed: 'normal',
+                        notes: {
+                            order_id: order._id.toString(),
+                            reason: 'Order cancelled by user'
+                        }
+                    });
+
+                    console.log(`✅ Refund initiated successfully: ${refund.id}`);
+
+                    order.paymentDetails.razorpay_refund_id = refund.id;
+                    order.refundStatus = 'processed';
+                } else {
+                    console.warn('⚠️ Razorpay not configured. Refund not processed.');
+                    order.refundStatus = 'pending';
+                }
+            } catch (refundError) {
+                console.error('❌ Refund Error:', refundError);
+                order.refundStatus = 'failed';
+                // Don't fail the cancellation, just mark refund as failed
+            }
+        }
+
         order.status = 'cancelled';
         await order.save();
+
+        // Send refund confirmation email if refund was processed
+        if (order.refundStatus === 'processed') {
+            sendRefundConfirmationEmail(req.user, order);
+        }
+
+        // Send status update email for cancellation
+        sendStatusUpdateEmail(req.user, order, 'cancelled');
 
         res.json({
             success: true,
             data: order,
-            message: 'Order cancelled successfully'
+            message: order.refundStatus === 'processed'
+                ? 'Order cancelled successfully. Refund will be processed within 5-7 business days.'
+                : 'Order cancelled successfully'
         });
     } catch (error) {
         console.error('Cancel order error:', error);
@@ -284,3 +390,4 @@ export const cancelOrder = async (req, res) => {
         });
     }
 };
+

@@ -203,7 +203,7 @@ Password: admin123
    - Copy the key
 
 2. **Add to Backend:**
-   - Open: `d:\e commerce\backend\.env`
+   - Open: `d:\agri ecommerce\backend\.env`
    - Find line: `GEMINI_API_KEY=your_gemini_api_key_here`
    - Replace with: `GEMINI_API_KEY=AIzaSy...your_actual_key`
    - Save file
@@ -334,7 +334,7 @@ npm run dev
 
 ## 📚 DOCUMENTATION FILES
 
-All located in `d:\e commerce\`:
+All located in `d:\agri ecommerce\`:
 
 1. **README.md** - Project overview & quick start
 2. **SETUP_GUIDE.md** - Detailed setup (8,500 words)

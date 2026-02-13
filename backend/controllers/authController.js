@@ -40,6 +40,7 @@ export const register = async (req, res) => {
                 data: {
                     _id: user._id,
                     name: user.name,
+                    username: user.username,
                     email: user.email,
                     role: user.role,
                     phone: user.phone,
@@ -89,6 +90,7 @@ export const login = async (req, res) => {
             data: {
                 _id: user._id,
                 name: user.name,
+                username: user.username,
                 email: user.email,
                 role: user.role,
                 phone: user.phone,
@@ -132,8 +134,31 @@ export const updateProfile = async (req, res) => {
         const user = await User.findById(req.user._id);
 
         if (user) {
+            // Check if new email is already taken by another user
+            if (req.body.email && req.body.email !== user.email) {
+                const emailExists = await User.findOne({ email: req.body.email });
+                if (emailExists) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Email is already taken by another account'
+                    });
+                }
+                user.email = req.body.email;
+            }
+
+            // Check if new username is already taken by another user
+            if (req.body.username && req.body.username !== user.username) {
+                const usernameExists = await User.findOne({ username: req.body.username });
+                if (usernameExists) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Username is already taken'
+                    });
+                }
+                user.username = req.body.username;
+            }
+
             user.name = req.body.name || user.name;
-            user.email = req.body.email || user.email;
             user.phone = req.body.phone || user.phone;
 
             if (req.body.password) {
@@ -147,16 +172,12 @@ export const updateProfile = async (req, res) => {
                 data: {
                     _id: updatedUser._id,
                     name: updatedUser.name,
+                    username: updatedUser.username,
                     email: updatedUser.email,
                     role: updatedUser.role,
                     phone: updatedUser.phone
                 },
                 message: 'Profile updated successfully'
-            });
-        } else {
-            res.status(404).json({
-                success: false,
-                message: 'User not found'
             });
         }
     } catch (error) {
@@ -164,6 +185,35 @@ export const updateProfile = async (req, res) => {
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to update profile'
+        });
+    }
+};
+
+// @desc    Delete user account
+// @route   DELETE /api/auth/account
+// @access  Private
+export const deleteAccount = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        await user.deleteOne();
+
+        res.json({
+            success: true,
+            message: 'Account deleted successfully'
+        });
+    } catch (error) {
+        console.error('Delete account error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to delete account'
         });
     }
 };

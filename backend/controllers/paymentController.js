@@ -1,24 +1,9 @@
-import Razorpay from 'razorpay';
+import getRazorpayInstance from '../utils/razorpay.js';
 import crypto from 'crypto';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import { sendOrderConfirmationEmail } from '../services/mailService.js';
 
-// Initialize Razorpay lazily to ensure environment variables are loaded
-let razorpay;
-const getRazorpayInstance = () => {
-    if (!razorpay) {
-        if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-            console.error('❌ Razorpay Error: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET is missing in .env');
-            return null;
-        }
-        razorpay = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID,
-            key_secret: process.env.RAZORPAY_KEY_SECRET
-        });
-    }
-    return razorpay;
-};
 
 /**
  * @desc    Create Razorpay Order
@@ -56,7 +41,7 @@ export const createRazorpayOrder = async (req, res) => {
                 id: response.id,
                 currency: response.currency,
                 amount: response.amount,
-                key_id: process.env.RAZORPAY_KEY_ID
+                key_id: process.env.RAZORPAY_KEY_ID?.replace(/"/g, '') // Send sanitized key to frontend
             }
         });
     } catch (error) {
@@ -64,7 +49,8 @@ export const createRazorpayOrder = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error creating Razorpay order',
-            error: error.message
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };
@@ -109,6 +95,7 @@ export const verifyPayment = async (req, res) => {
                 finalItems.push({
                     productId: product._id,
                     name: product.name,
+                    manufacturer: product.manufacturer,
                     price: item.price,
                     quantity: item.quantity,
                     subtotal: item.price * item.quantity

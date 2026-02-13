@@ -8,7 +8,7 @@ import orderRoutes from './routes/orderRoutes.js';
 import addressRoutes from './routes/addressRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 
-// Initialize express app
+// Initialize express app - Restart triggered for Razorpay config
 const app = express();
 
 // Connect to MongoDB

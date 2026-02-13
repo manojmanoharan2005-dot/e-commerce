@@ -13,6 +13,7 @@ const orderSchema = new mongoose.Schema({
             required: true
         },
         name: String,
+        manufacturer: String,
         price: Number,
         quantity: {
             type: Number,
@@ -52,7 +53,13 @@ const orderSchema = new mongoose.Schema({
     paymentDetails: {
         razorpay_order_id: String,
         razorpay_payment_id: String,
-        razorpay_signature: String
+        razorpay_signature: String,
+        razorpay_refund_id: String
+    },
+    refundStatus: {
+        type: String,
+        enum: ['none', 'pending', 'processed', 'failed'],
+        default: 'none'
     },
     orderDate: {
         type: Date,

@@ -7,17 +7,12 @@ import ProductCard from '../components/ProductCard';
 const Home = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [timeLeft, setTimeLeft] = useState({ hours: 2, minutes: 45, seconds: 0 });
 
     const categories = [
-        { name: 'Organic', image: '/images/categories/organic.png', icon: Leaf },
-        { name: 'Chemical', image: '/images/categories/chemical.png', icon: FlaskConical },
-        { name: 'Seeds', image: '/images/categories/seeds.png', icon: Wheat },
-        { name: 'Tools', image: '/images/categories/tools.png', icon: Wrench },
-        { name: 'Pesticides', image: '/images/categories/pesticides.png', icon: Shield },
-        { name: 'Equipment', image: '/images/categories/equipment.png', icon: Box },
-        { name: 'Soil', image: '/images/categories/soil.png', icon: Sprout },
-        { name: 'Offers', image: '/images/categories/offers.png', icon: Sparkles }
+        { name: 'Organic', image: 'https://images.unsplash.com/photo-1594901861110-388e40424564?q=80&w=300&auto=format&fit=crop', icon: Leaf, count: '120+ Products' },
+        { name: 'Seeds', image: 'https://images.unsplash.com/photo-1592150621344-82d672ac653e?q=80&w=300&auto=format&fit=crop', icon: Wheat, count: '85+ Products' },
+        { name: 'Tools', image: 'https://images.unsplash.com/photo-1523308417031-4029bd0401c2?q=80&w=300&auto=format&fit=crop', icon: Wrench, count: '45+ Products' },
+        { name: 'Pesticides', image: 'https://images.unsplash.com/photo-1587334274328-64186a80aeee?q=80&w=300&auto=format&fit=crop', icon: Shield, count: '60+ Products' },
     ];
 
     useEffect(() => {
@@ -32,192 +27,130 @@ const Home = () => {
             }
         };
         fetchProducts();
-
-        // Newsletter/Flash Sale Timer
-        const timer = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
-                if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
-                if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
-                return prev;
-            });
-        }, 1000);
-
-        return () => clearInterval(timer);
     }, []);
 
-    const flashSaleProducts = products.filter(p => p.isFlashSale).slice(0, 5);
-    const trendingProducts = products.filter(p => p.isTrending).slice(0, 10);
-    const topDeals = products.slice(0, 5);
+    const trendingProducts = products.filter(p => p.isTrending).slice(0, 8);
 
     return (
-        <div className="bg-[#f1f3f6] min-h-screen pb-10">
-            {/* Live Market Ticker */}
-            <div className="bg-gray-900 text-white py-2 overflow-hidden whitespace-nowrap relative">
+        <div className="bg-slate-50 min-h-screen pb-20">
+            {/* Live Market Ticker - More Subtle */}
+            <div className="bg-primary text-white py-2.5 overflow-hidden whitespace-nowrap relative border-b border-white/5">
                 <div className="inline-block animate-marquee">
-                    <span className="mx-8 text-[10px] font-black uppercase tracking-widest text-[#ffe500]">Live Market:</span>
-                    <span className="mx-4 text-[10px] font-bold uppercase">Urea ↑ 2%</span>
-                    <span className="mx-4 text-[10px] font-bold uppercase">DAP ↓ 1.5%</span>
-                    <span className="mx-4 text-[10px] font-bold uppercase">NPK 19-19-19 - Stable</span>
-                    <span className="mx-4 text-[10px] font-bold uppercase text-[#388e3c]">New Stock: Hybrid Tomato Seeds ARRIVED</span>
-                    <span className="mx-8 text-[10px] font-black uppercase tracking-widest text-[#ffe500]">Flash Sale Ending Soon!</span>
+                    <span className="mx-8 text-[10px] font-black uppercase tracking-[0.3em] text-accent">Market Prices:</span>
+                    <span className="mx-4 text-[10px] font-bold uppercase tracking-widest opacity-80">Urea <span className="text-emerald-400">↑ 2.4%</span></span>
+                    <span className="mx-4 text-[10px] font-bold uppercase tracking-widest opacity-80">Organic DAP <span className="text-rose-400">↓ 1.2%</span></span>
+                    <span className="mx-4 text-[10px] font-bold uppercase tracking-widest opacity-80">NPK Gold - Best Price</span>
+                    <span className="mx-4 text-[10px] font-bold uppercase tracking-widest text-accent italic underline decoration-2">New: High-Yield Seeds</span>
                     {/* Duplicate for seamless loop */}
-                    <span className="mx-8 text-[10px] font-black uppercase tracking-widest text-[#ffe500]">Live Market:</span>
-                    <span className="mx-4 text-[10px] font-bold uppercase">Urea ↑ 2%</span>
-                    <span className="mx-4 text-[10px] font-bold uppercase">DAP ↓ 1.5%</span>
+                    <span className="mx-8 text-[10px] font-black uppercase tracking-[0.3em] text-accent">Market Insight:</span>
+                    <span className="mx-4 text-[10px] font-bold uppercase tracking-widest opacity-80">Premium Urea <span className="text-emerald-400">↑ 2.4%</span></span>
                 </div>
             </div>
 
-            {/* Flipkart-style Category Bar */}
-            <div className="bg-white shadow-sm border-b border-gray-100 mb-2 overflow-x-auto scrollbar-hide">
-                <div className="container mx-auto px-4 py-4 lg:max-w-7xl flex items-center justify-between min-w-max gap-8 lg:gap-0">
+            <main className="container mx-auto px-4 lg:max-w-7xl pt-8">
+                {/* Hero Section - Full Width */}
+                <div className="relative mb-12">
+                    <div className="w-full relative h-[400px] lg:h-[550px] overflow-hidden rounded-[2.5rem] shadow-2xl group">
+                        <img
+                            src="https://images.unsplash.com/photo-1599839619722-397514118331?q=80&w=2070&auto=format&fit=crop"
+                            alt="Hero Banner"
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[15s] ease-out"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/30 to-transparent flex flex-col justify-end p-8 lg:p-16">
+                            <div className="inline-flex items-center gap-2 bg-accent text-primary text-[10px] font-bold px-3 py-1 rounded-full mb-6 w-fit uppercase tracking-[0.2em] animate-fade-in shadow-lg">
+                                <Sparkles className="w-3 h-3" /> Season's Best
+                            </div>
+                            <h2 className="text-4xl md:text-6xl font-black mb-4 text-white leading-[1.1] tracking-tight max-w-2xl">
+                                Growing <span className="text-accent">Better</span> with Every Harvest.
+                            </h2>
+                            <p className="text-lg md:text-xl font-medium mb-10 text-white/80 max-w-xl">
+                                High-quality fertilizers and tools for your farm. Trusted by thousands of farmers.
+                            </p>
+                            <div className="flex flex-wrap gap-4">
+                                <Link to="/products" className="bg-accent text-primary px-10 py-4 rounded-2xl font-black shadow-xl shadow-accent/20 hover:scale-105 transition-all text-sm uppercase tracking-widest group">
+                                    Shop Now
+                                    <ChevronRight className="inline-block ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                </Link>
+                                <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md border border-white/20 px-6 py-4 rounded-2xl text-white">
+                                    <div className="flex -space-x-3">
+                                        {[1, 2, 3].map(i => <div key={i} className="w-8 h-8 rounded-full border-2 border-primary bg-slate-300 overflow-hidden"><img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" /></div>)}
+                                    </div>
+                                    <span className="text-xs font-bold font-serif italic">Joined by 12k+ Farmers</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                </div>
+
+                {/* Modern Category Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
                     {categories.map((cat, i) => (
                         <Link
                             key={i}
                             to={`/products?category=${cat.name}`}
-                            className="flex flex-col items-center group cursor-pointer transition-all hover:translate-y-[-2px]"
+                            className="group relative h-48 rounded-[2rem] overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500"
                         >
-                            <div className="w-16 h-16 mb-2 overflow-hidden flex items-center justify-center">
-                                <img
-                                    src={cat.image}
-                                    alt={cat.name}
-                                    className="w-full h-full object-contain group-hover:scale-110 transition-transform"
-                                />
+                            <img src={cat.image} className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-700" alt={cat.name} />
+                            <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent p-6 flex flex-col justify-end">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h4 className="text-lg font-black text-white leading-none mb-1">{cat.name}</h4>
+                                        <p className="text-[10px] text-white/70 font-bold uppercase tracking-widest">{cat.count}</p>
+                                    </div>
+                                    <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-white group-hover:bg-accent group-hover:text-primary transition-colors">
+                                        <cat.icon className="w-5 h-5" />
+                                    </div>
+                                </div>
                             </div>
-                            <span className="text-sm font-bold text-gray-800 group-hover:text-[#2e7d32] tracking-tight">
-                                {cat.name}
-                            </span>
                         </Link>
                     ))}
                 </div>
-            </div>
 
-            <div className="container mx-auto px-2 lg:px-4 lg:max-w-7xl">
-                {/* Hero Banner */}
-                <div className="relative h-[200px] md:h-[300px] lg:h-[400px] mb-4 overflow-hidden shadow-sm group rounded-sm">
-                    <img
-                        src="https://images.unsplash.com/photo-1599839619722-397514118331?q=80&w=2070&auto=format&fit=crop"
-                        alt="Hero Banner"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[10s]"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent flex flex-col justify-center px-12 text-white">
-                        <div className="inline-block bg-[#ffe500] text-gray-900 text-[10px] font-black px-3 py-1 rounded-sm mb-4 w-fit uppercase tracking-widest">Mega Savings Event</div>
-                        <h2 className="text-4xl md:text-6xl font-black mb-2 italic leading-none">SMART FARMING</h2>
-                        <p className="text-xl md:text-2xl font-bold mb-8 text-white/90 max-w-lg">Premium Fertilizers & Seeds at Factory Prices. Expert AI advice for free.</p>
-                        <Link to="/products" className="bg-[#2e7d32] text-white px-12 py-4 rounded-sm font-black w-fit shadow-2xl hover:bg-black transition-all uppercase text-sm tracking-widest">
-                            Shop The Deals
-                        </Link>
+                {/* Section Header */}
+                <div className="flex items-end justify-between mb-8">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="w-8 h-[2px] bg-accent"></span>
+                            <span className="text-[10px] font-black text-accent uppercase tracking-[0.3em]">Trending Now</span>
+                        </div>
+                        <h3 className="text-3xl font-black text-slate-900 tracking-tight leading-none italic">POPULAR PRODUCTS</h3>
                     </div>
+                    <Link to="/products" className="group flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-primary transition-colors">
+                        View All Products <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
                 </div>
 
-                {/* Flash Sale Countdown Section */}
-                <div className="bg-white p-4 shadow-sm rounded-sm mb-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 pb-4 mb-6 gap-4">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight uppercase italic flex items-center gap-2">
-                                <Zap className="w-6 h-6 text-[#fb641b] fill-[#fb641b]" />
-                                Flash Sale
-                            </h2>
-                            <div className="flex items-center gap-2 bg-red-50 px-3 py-1 rounded-sm border border-red-100">
-                                <span className="text-[10px] font-black text-red-600 uppercase">Ends In:</span>
-                                <div className="flex gap-1">
-                                    <span className="bg-red-600 text-white text-xs font-black px-1.5 py-0.5 rounded-sm">{String(timeLeft.hours).padStart(2, '0')}</span>
-                                    <span className="text-red-600 font-black">:</span>
-                                    <span className="bg-red-600 text-white text-xs font-black px-1.5 py-0.5 rounded-sm">{String(timeLeft.minutes).padStart(2, '0')}</span>
-                                    <span className="text-red-600 font-black">:</span>
-                                    <span className="bg-red-600 text-white text-xs font-black px-1.5 py-0.5 rounded-sm">{String(timeLeft.seconds).padStart(2, '0')}</span>
-                                </div>
+                {/* Standard Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 mb-20">
+                    {loading ? (
+                        [1, 2, 3, 4].map(i => <div key={i} className="aspect-[3/4] bg-slate-100 rounded-[2.5rem] animate-pulse" />)
+                    ) : (
+                        trendingProducts.map(product => <ProductCard key={product._id} product={product} />)
+                    )}
+                </div>
+
+                {/* Features / Benefits Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-20">
+                    {[
+                        { title: 'AI Assistant', desc: 'Get smart farming advice powered by AI.', icon: Sparkles, color: 'bg-indigo-50 text-indigo-500' },
+                        { title: 'Best Prices', desc: 'We offer high quality products at the lowest cost.', icon: Shield, color: 'bg-emerald-50 text-emerald-500' },
+                        { title: 'Fast Delivery', desc: 'Quick and safe delivery to your doorstep.', icon: Box, color: 'bg-amber-50 text-amber-500' }
+                    ].map((f, i) => (
+                        <div key={i} className="bg-white p-10 rounded-[2.5rem] border border-slate-100 hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-300 group">
+                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-8 ${f.color} group-hover:scale-110 transition-transform`}>
+                                <f.icon className="w-8 h-8" />
                             </div>
+                            <h4 className="text-xl font-black text-slate-900 mb-3">{f.title}</h4>
+                            <p className="text-slate-500 font-medium leading-relaxed">{f.desc}</p>
                         </div>
-                        <Link to="/products" className="bg-[#2e7d32] text-white px-8 py-2.5 rounded-sm text-xs font-black shadow hover:bg-black transition-all uppercase tracking-widest">
-                            View all deals
-                        </Link>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                        {loading ? (
-                            [1, 2, 3, 4, 5].map(i => <div key={i} className="bg-gray-100 aspect-[4/5] rounded animate-pulse" />)
-                        ) : (
-                            flashSaleProducts.map(product => <ProductCard key={product._id} product={product} />)
-                        )}
-                    </div>
+                    ))}
                 </div>
-
-                {/* Trending Slider Section */}
-                {!loading && trendingProducts.length > 0 && (
-                    <div className="bg-white p-4 shadow-sm rounded-sm mb-4 overflow-hidden">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
-                            <div className="flex items-center gap-2">
-                                <TrendingUp className="w-5 h-5 text-[#2e7d32]" />
-                                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight italic">Trending Now</h2>
-                            </div>
-                            <Link to="/products" className="text-[#2e7d32] font-black text-xs uppercase hover:underline">See everything</Link>
-                        </div>
-                        <div className="flex gap-4 overflow-x-auto py-4 scrollbar-hide pb-6">
-                            {trendingProducts.map(product => (
-                                <Link key={product._id} to={`/products/${product._id}`} className="min-w-[200px] flex flex-col group p-4 border border-gray-50 rounded-sm hover:border-green-100 hover:shadow-lg transition-all bg-white relative">
-                                    <div className="absolute top-2 right-2 bg-green-50 text-[#2e7d32] text-[8px] font-black px-1.5 py-0.5 rounded-sm uppercase">Hot</div>
-                                    <div className="w-full aspect-square mb-4">
-                                        <img src={product.imageUrl} className="w-full h-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform" alt={product.name} />
-                                    </div>
-                                    <p className="text-xs font-black text-gray-900 group-hover:text-[#2e7d32] line-clamp-1 mb-1">{product.name}</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[#388e3c] font-black">₹{product.price}</span>
-                                        <span className="text-gray-400 text-[10px] line-through">₹{product.mrp}</span>
-                                    </div>
-                                    <div className="mt-2 w-full bg-gray-100 h-1 rounded-full overflow-hidden">
-                                        <div className="bg-[#2e7d32] h-full" style={{ width: `${Math.random() * 60 + 40}%` }}></div>
-                                    </div>
-                                    <p className="text-[8px] font-black text-gray-400 mt-1 uppercase">Selling Fast</p>
-                                </Link>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Marketing Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                    <div className="bg-gradient-to-br from-[#2e7d32] to-[#1b5e20] p-8 rounded-sm text-white relative overflow-hidden group">
-                        <div className="z-10 relative">
-                            <h3 className="text-2xl font-black mb-2 italic">FREE AI ANALYSIS</h3>
-                            <p className="text-white/80 text-sm font-bold mb-6 max-w-[180px]">Ask Gemini about your crop suitability and soil health.</p>
-                            <Link to="/products" className="bg-white text-[#2e7d32] px-6 py-2.5 rounded-sm font-black uppercase text-xs shadow-xl inline-block hover:scale-105 transition-transform">Get Advice</Link>
-                        </div>
-                        <Sparkles className="w-32 h-32 absolute right-[-20px] bottom-[-20px] text-white/10 rotate-12 group-hover:scale-110 transition-transform" />
-                    </div>
-                    <div className="bg-gradient-to-br from-[#fb641b] to-[#dc4f0b] p-8 rounded-sm text-white relative overflow-hidden group">
-                        <div className="z-10 relative">
-                            <h3 className="text-2xl font-black mb-2 italic">PRICE ALERTS</h3>
-                            <p className="text-white/80 text-sm font-bold mb-6 max-w-[180px]">Don't overpay. Track real-time market rates and trends.</p>
-                            <Link to="/products" className="bg-white text-[#fb641b] px-6 py-2.5 rounded-sm font-black uppercase text-xs shadow-xl inline-block hover:scale-105 transition-transform">Check Rates</Link>
-                        </div>
-                        <Zap className="w-32 h-32 absolute right-[-20px] bottom-[-20px] text-white/10 rotate-12 group-hover:scale-110 transition-transform" />
-                    </div>
-                    <div className="bg-gradient-to-br from-[#388e3c] to-[#2e7d32] p-8 rounded-sm text-white relative overflow-hidden group hidden lg:block">
-                        <div className="z-10 relative">
-                            <h3 className="text-2xl font-black mb-2 italic">SAME DAY DELIVERY</h3>
-                            <p className="text-white/80 text-sm font-bold mb-6 max-w-[180px]">Express logistics for seeds and small tool supplies.</p>
-                            <Link to="/products" className="bg-white text-[#388e3c] px-6 py-2.5 rounded-sm font-black uppercase text-xs shadow-xl inline-block hover:scale-105 transition-transform">Search Express</Link>
-                        </div>
-                        <Box className="w-32 h-32 absolute right-[-20px] bottom-[-20px] text-white/10 rotate-12 group-hover:scale-110 transition-transform" />
-                    </div>
-                </div>
-
-                {/* Best Sellers */}
-                {!loading && topDeals.length > 0 && (
-                    <div className="bg-white p-4 shadow-sm rounded-sm">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
-                            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Best Sellers in Fertilizers</h2>
-                            <Link to="/products" className="text-[#2e7d32] font-black text-xs uppercase hover:underline">View All</Link>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            {topDeals.map(product => <ProductCard key={product._id} product={product} />)}
-                        </div>
-                    </div>
-                )}
-            </div>
+            </main>
         </div>
     );
 };
+
 
 export default Home;
