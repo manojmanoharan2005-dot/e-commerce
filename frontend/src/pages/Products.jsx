@@ -8,6 +8,7 @@ const Products = () => {
   const { isAuthenticated } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [wishlistIds, setWishlistIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -17,6 +18,7 @@ const Products = () => {
   const inStock = searchParams.get('inStock') || 'false';
   const minPrice = searchParams.get('minPrice') || '';
   const maxPrice = searchParams.get('maxPrice') || '';
+  const page = parseInt(searchParams.get('page')) || 1;
 
   const loadWishlistIds = async () => {
     if (!isAuthenticated) {
@@ -34,10 +36,12 @@ const Products = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       try {
         if (search) {
           const { data } = await api.get('/products/search', { params: { query: search } });
           setProducts(data.products || []);
+          setPagination({ total: data.products?.length || 0, page: 1, pages: 1 });
         } else {
           const { data } = await api.get('/products', {
             params: {
@@ -45,17 +49,20 @@ const Products = () => {
               minPrice: minPrice || undefined,
               maxPrice: maxPrice || undefined,
               inStock,
-              sort: sort === 'popularity' ? undefined : sort
+              sort: sort === 'popularity' ? undefined : sort,
+              page,
+              limit: 12
             }
           });
           setProducts(data.products || []);
+          setPagination(data.pagination || { total: 0, page: 1, pages: 1 });
         }
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, [category, search, minPrice, maxPrice, inStock, sort]);
+  }, [category, search, minPrice, maxPrice, inStock, sort, page]);
 
   useEffect(() => {
     loadWishlistIds();
@@ -79,6 +86,10 @@ const Products = () => {
     const next = new URLSearchParams(searchParams);
     if (!value || value === 'All' || value === 'false') next.delete(key);
     else next.set(key, value);
+    
+    // Reset page on filter change
+    if (key !== 'page') next.delete('page');
+    
     setSearchParams(next);
   };
 
@@ -86,7 +97,7 @@ const Products = () => {
     <div className="page-container py-8">
       <div className="grid lg:grid-cols-[300px_1fr] gap-6 items-start">
         <aside className="card p-8 lg:sticky lg:top-24 h-fit">
-          <h2 className="text-[2rem] font-black italic text-slate-800">Filters</h2>
+          <h2 className="text-[2rem] font-black text-slate-800">Filters</h2>
 
           <div className="mt-8">
             <p className="text-xs tracking-[0.18em] font-extrabold text-slate-400">COLLECTIONS</p>
@@ -126,8 +137,8 @@ const Products = () => {
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-4">
-              <h1 className="text-[3.2rem] leading-none font-black italic text-slate-800">Marketplace</h1>
-              <span className="text-slate-400 text-xl font-semibold">Explore {products.length}</span>
+              <h1 className="text-[3.2rem] leading-none font-black text-slate-800">Marketplace</h1>
+              <span className="text-slate-400 text-xl font-semibold">Explore {pagination.total}</span>
             </div>
 
             {search && (
@@ -148,7 +159,7 @@ const Products = () => {
             </div>
 
             {loading ? (
-              <div className="min-h-[360px] grid place-items-center text-center">
+              <div className="min-h-[460px] grid place-items-center text-center">
                 <div>
                   <div className="mx-auto h-14 w-14 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
                   <p className="mt-5 text-xl font-extrabold tracking-[0.12em] text-slate-400">LOADING PRODUCTS...</p>
@@ -157,15 +168,39 @@ const Products = () => {
             ) : products.length === 0 ? (
               <div className="min-h-[260px] grid place-items-center text-center text-slate-500 text-lg font-semibold">No products found.</div>
             ) : (
+                <>
                 <div className="mt-8 grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-                {products.map((product) => (
-                  <ProductCard
-                    key={product._id}
-                    product={{ ...product, isWishlisted: wishlistIds.has(product._id) }}
-                    onWishlistChange={loadWishlistIds}
-                  />
-                ))}
-              </div>
+                  {products.map((product) => (
+                    <ProductCard
+                      key={product._id}
+                      product={{ ...product, isWishlisted: wishlistIds.has(product._id) }}
+                      onWishlistChange={loadWishlistIds}
+                    />
+                  ))}
+                </div>
+
+                {pagination.pages > 1 && (
+                  <div className="mt-12 flex items-center justify-center gap-4 border-t border-slate-100 pt-10">
+                    <button
+                      disabled={page <= 1}
+                      onClick={() => updateParam('page', page - 1)}
+                      className="px-6 py-3 rounded-xl border border-slate-200 text-sm font-black tracking-widest hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+                    >
+                      PREVIOUS
+                    </button>
+                    <span className="text-sm font-black text-slate-400 tracking-widest px-4">
+                      PAGE {pagination.page} OF {pagination.pages}
+                    </span>
+                    <button
+                      disabled={page >= pagination.pages}
+                      onClick={() => updateParam('page', page + 1)}
+                      className="px-6 py-3 rounded-xl border border-slate-200 text-sm font-black tracking-widest hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+                    >
+                      NEXT
+                    </button>
+                  </div>
+                )}
+                </>
             )}
           </div>
         </section>
@@ -175,3 +210,4 @@ const Products = () => {
 };
 
 export default Products;
+

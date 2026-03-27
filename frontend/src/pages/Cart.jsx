@@ -16,7 +16,7 @@ const Cart = () => {
         <UserSidebar />
         <div className="card p-10 text-center">
           <p className="text-xs tracking-[0.2em] font-extrabold text-slate-400">CART</p>
-          <h1 className="text-[3rem] font-black italic leading-none text-slate-800 mt-3">Your cart is empty</h1>
+          <h1 className="text-[3rem] font-black leading-none text-slate-800 mt-3">Your cart is empty</h1>
           <p className="text-slate-500 mt-4">Add products to build your premium checkout panel.</p>
           <Link to="/products" className="btn-secondary inline-block mt-8 px-8 py-3 rounded-2xl text-sm font-black tracking-[0.1em]">CONTINUE SHOPPING</Link>
         </div>
@@ -32,7 +32,7 @@ const Cart = () => {
         <div className="card p-6 md:p-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs tracking-[0.2em] font-extrabold text-slate-400">CART PANEL</p>
-            <h1 className="text-[3.1rem] font-black italic leading-none text-slate-800 mt-2">Your Cart</h1>
+            <h1 className="text-[3.1rem] font-black leading-none text-slate-800 mt-2">Your Cart</h1>
             <p className="text-slate-500 mt-3">{itemCount} item(s) selected for checkout</p>
           </div>
           <div className="rounded-3xl bg-slate-100 border border-slate-200 px-6 py-4 text-right">

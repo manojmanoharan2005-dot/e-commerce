@@ -23,6 +23,13 @@ const Register = () => {
   const [showLoginSuggestion, setShowLoginSuggestion] = useState(false);
   const [postalError, setPostalError] = useState('');
   const [postalLoading, setPostalLoading] = useState(false);
+  const [verificationMode, setVerificationMode] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [success, setSuccess] = useState('');
+
+  const passwordMatches = form.password && form.confirmPassword && form.password === form.confirmPassword;
+  const passwordCriteriaMet = form.password.length >= 8 && /\d/.test(form.password);
 
   const fetchPostalDetails = async (pincode) => {
     if (!/^\d{6}$/.test(pincode)) return;
@@ -102,6 +109,7 @@ const Register = () => {
       name: form.name,
       email: form.email,
       password: form.password,
+      phone: cleanedPhone,
       address: {
         district: form.district,
         city: form.district,
@@ -110,18 +118,43 @@ const Register = () => {
       }
     };
 
-    if (cleanedPhone.length > 0) payload.phone = cleanedPhone;
-
     const result = await register(payload);
     if (!result.success) {
       const message = result.message || 'Registration failed';
       setError(message);
-      if (/already registered|already exists|email exists/i.test(message)) {
+      if (/email|phone|already registered|already exists/i.test(message)) {
         setShowLoginSuggestion(true);
       }
       return;
     }
+
+    if (result.requiresVerification) {
+      setVerificationMode(true);
+      setSuccess(result.message || 'OTP sent to your email.');
+      return;
+    }
+
     navigate('/products');
+  };
+
+  const onVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setVerifying(true);
+    try {
+      const { data } = await api.post('/auth/register-verify', {
+        email: form.email.toLowerCase(),
+        otp
+      });
+      
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      window.location.href = '/products';
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Verification failed');
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const inputCls = 'w-full bg-white border border-slate-300 px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 text-sm text-slate-700 placeholder:text-slate-400';
@@ -151,59 +184,131 @@ const Register = () => {
               </div>
             </div>
 
-            <form onSubmit={onSubmit} className="p-7 sm:p-10 bg-white">
-              <h2 className="text-2xl font-extrabold text-slate-800 mb-2">Create your account</h2>
-              <p className="text-sm text-slate-400 mb-5">Set up your farmer account in a minute.</p>
-              <div className="space-y-3">
-                <input className={inputCls} placeholder="Full Name" value={form.name} onChange={(e) => setForm(v => ({ ...v, name: e.target.value }))} required />
-                <input className={inputCls} type="email" placeholder="Email address" value={form.email} onChange={(e) => setForm(v => ({ ...v, email: e.target.value }))} required />
-                <input className={inputCls} placeholder="Phone number" value={form.phone} onChange={(e) => setForm(v => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))} required />
-                <input className={inputCls} type="password" placeholder="Password (min 8 chars, 1 number)" value={form.password} onChange={(e) => setForm(v => ({ ...v, password: e.target.value }))} required />
-                <input className={inputCls} type="password" placeholder="Confirm Password" value={form.confirmPassword} onChange={(e) => setForm(v => ({ ...v, confirmPassword: e.target.value }))} required />
-                <input
-                  className={inputCls}
-                  placeholder="Pincode"
-                  value={form.pincode}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                    setForm(v => ({ ...v, pincode: value }));
-                  }}
-                  required
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <input className={inputCls} placeholder="District" value={form.district} onChange={(e) => setForm(v => ({ ...v, district: e.target.value }))} required />
-                  <input className={inputCls} placeholder="State" value={form.state} onChange={(e) => setForm(v => ({ ...v, state: e.target.value }))} required />
-                </div>
-              </div>
-
-              {postalLoading && <p className="text-slate-500 text-xs mt-3 flex items-center gap-1"><span className="inline-block w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />Fetching location details...</p>}
-              {postalError && <p className="text-orange-500 text-xs mt-3">{postalError}</p>}
-              {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
-              {showLoginSuggestion && (
-                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 flex items-center justify-between gap-3">
-                  <p className="text-xs text-emerald-700">This email is already registered. Sign in instead.</p>
+            {verificationMode ? (
+              <form onSubmit={onVerifyOtp} className="p-7 sm:p-10 bg-white">
+                <h2 className="text-2xl font-extrabold text-slate-800 mb-2">Verify your email</h2>
+                <p className="text-sm text-slate-400 mb-5">We've sent a 6-digit code to <span className="text-slate-700 font-bold">{form.email}</span></p>
+                
+                <div className="space-y-4">
+                  <input
+                    className={`${inputCls} text-center text-2xl tracking-[0.5em] font-black`}
+                    placeholder="000000"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    required
+                  />
+                  <button
+                    disabled={verifying || otp.length !== 6}
+                    className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold tracking-widest py-3.5 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                  >
+                    {verifying ? 'VERIFYING...' : 'VERIFY & CONTINUE'}
+                  </button>
                   <button
                     type="button"
-                    onClick={() => navigate(`/login?email=${encodeURIComponent(form.email.trim())}`)}
-                    className="text-xs font-bold text-slate-700 hover:text-emerald-600 transition-colors"
+                    onClick={() => setVerificationMode(false)}
+                    className="w-full text-xs text-slate-400 font-bold hover:text-slate-600 transition-colors"
                   >
-                    Go to Sign in
+                    Back to registration
                   </button>
                 </div>
-              )}
 
-              <button
-                disabled={loading}
-                className="w-full mt-5 bg-slate-900 hover:bg-black text-white font-bold tracking-widest py-3.5 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-              >
-                {loading ? 'CREATING ACCOUNT...' : 'REGISTER'}
-              </button>
+                {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
+                {success && !error && <p className="text-emerald-500 text-sm mt-4 text-center">{success}</p>}
+              </form>
+            ) : (
+              <form onSubmit={onSubmit} className="p-7 sm:p-10 bg-white">
+                <h2 className="text-2xl font-extrabold text-slate-800 mb-2">Create your account</h2>
+                <p className="text-sm text-slate-400 mb-5">Set up your farmer account in a minute.</p>
+                <div className="space-y-3">
+                  <input className={inputCls} placeholder="Full Name" value={form.name} onChange={(e) => setForm(v => ({ ...v, name: e.target.value }))} required />
+                  <input className={inputCls} type="email" placeholder="Email address" value={form.email} onChange={(e) => setForm(v => ({ ...v, email: e.target.value }))} required />
+                  <input className={inputCls} placeholder="Phone number" value={form.phone} onChange={(e) => setForm(v => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))} required />
+                  
+                  <div className="relative">
+                    <input 
+                      className={`${inputCls} ${form.password && !passwordCriteriaMet ? 'border-orange-300' : ''}`} 
+                      type="password" 
+                      placeholder="Password (min 8 chars, 1 number)" 
+                      value={form.password} 
+                      onChange={(e) => setForm(v => ({ ...v, password: e.target.value }))} 
+                      required 
+                    />
+                    {form.password && (
+                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {passwordCriteriaMet ? (
+                            <span className="text-emerald-500 text-xs font-bold">Strong</span>
+                          ) : (
+                            <span className="text-orange-400 text-xs font-bold italic">Weak</span>
+                          )}
+                       </div>
+                    )}
+                  </div>
 
-              <p className="text-sm mt-6 text-center text-slate-500">
-                Already have an account?{' '}
-                <Link to="/login" className="text-slate-800 font-extrabold hover:text-emerald-600 transition-colors">Sign in</Link>
-              </p>
-            </form>
+                  <div className="relative">
+                    <input 
+                      className={`${inputCls} ${form.confirmPassword && !passwordMatches ? 'border-red-300' : (passwordMatches ? 'border-emerald-300' : '')}`} 
+                      type="password" 
+                      placeholder="Confirm Password" 
+                      value={form.confirmPassword} 
+                      onChange={(e) => setForm(v => ({ ...v, confirmPassword: e.target.value }))} 
+                      required 
+                    />
+                    {form.confirmPassword && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {passwordMatches ? (
+                          <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">Matched</span>
+                        ) : (
+                          <span className="bg-red-50 text-red-500 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter shadow-sm">No Match</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <input
+                    className={inputCls}
+                    placeholder="Pincode"
+                    value={form.pincode}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setForm(v => ({ ...v, pincode: value }));
+                    }}
+                    required
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className={inputCls} placeholder="District" value={form.district} onChange={(e) => setForm(v => ({ ...v, district: e.target.value }))} required />
+                    <input className={inputCls} placeholder="State" value={form.state} onChange={(e) => setForm(v => ({ ...v, state: e.target.value }))} required />
+                  </div>
+                </div>
+
+                {postalLoading && <p className="text-slate-500 text-xs mt-3 flex items-center gap-1"><span className="inline-block w-3 h-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />Fetching location details...</p>}
+                {postalError && <p className="text-orange-500 text-xs mt-3">{postalError}</p>}
+                {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+                {showLoginSuggestion && (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 flex items-center justify-between gap-3">
+                    <p className="text-xs text-emerald-700">This email is already registered. Sign in instead.</p>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/login?email=${encodeURIComponent(form.email.trim())}`)}
+                      className="text-xs font-bold text-slate-700 hover:text-emerald-600 transition-colors"
+                    >
+                      Go to Sign in
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  disabled={loading || !passwordMatches || !passwordCriteriaMet}
+                  className="w-full mt-5 bg-slate-900 hover:bg-black text-white font-bold tracking-widest py-3.5 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+                >
+                  {loading ? 'CREATING ACCOUNT...' : 'REGISTER'}
+                </button>
+
+                <p className="text-sm mt-6 text-center text-slate-500">
+                  Already have an account?{' '}
+                  <Link to="/login" className="text-slate-800 font-extrabold hover:text-emerald-600 transition-colors">Sign in</Link>
+                </p>
+              </form>
+            )}
           </div>
         </div>
       </div>

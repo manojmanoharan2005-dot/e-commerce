@@ -29,7 +29,8 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters'],
+    minlength: [8, 'Password must be at least 8 characters'],
+    match: [/^(?=.*\d).{8,}$/, 'Password must be at least 8 characters long and contain at least one number'],
     select: false
   },
   role: {
@@ -41,7 +42,13 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  phone: { type: String, trim: true },
+  phone: { 
+    type: String, 
+    required: [true, 'Phone number is required'],
+    unique: true, 
+    trim: true,
+    match: [/^\d{10}$/, 'Please enter a valid 10-digit phone number']
+  },
   isEmailVerified: { type: Boolean, default: false },
   address: {
     street: { type: String },

@@ -78,6 +78,16 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/register', userData);
+      
+      if (data.requiresVerification) {
+        return { 
+          success: true, 
+          requiresVerification: true, 
+          email: data.email, 
+          message: data.message 
+        };
+      }
+
       storeAuth(data.token, data.user);
       return { success: true, user: data.user };
     } catch (error) {

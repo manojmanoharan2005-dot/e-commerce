@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle2,
@@ -41,6 +41,16 @@ const Checkout = () => {
     name: '', phone: '', pincode: '', locality: '', address: '', city: '', state: '', type: 'Home'
   });
 
+  const step1Ref = useRef(null);
+  const step2Ref = useRef(null);
+  const step3Ref = useRef(null);
+  const step4Ref = useRef(null);
+
+  useEffect(() => {
+    // Pre-load Razorpay script for instant loading later
+    loadRazorpay();
+  }, []);
+
   const currentUser = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem('user')) || null;
@@ -54,6 +64,15 @@ const Checkout = () => {
     setCompletedSteps((prev) => ({ ...prev, 1: hasAccount }));
     if (hasAccount && activeStep === 1) setActiveStep(2);
   }, [currentUser, activeStep]);
+
+  useEffect(() => {
+    const refs = { 1: step1Ref, 2: step2Ref, 3: step3Ref, 4: step4Ref };
+    if (refs[activeStep]?.current) {
+      setTimeout(() => {
+        refs[activeStep].current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [activeStep]);
 
   useEffect(() => {
     const hydrateAddressStep = (list) => {
@@ -283,8 +302,8 @@ const Checkout = () => {
   return (
     <div className="page-container py-8">
       <div className="grid lg:grid-cols-[1fr_360px] gap-6">
-        <div className="space-y-5">
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6">
+        <div className="space-y-4">
+          <section ref={step1Ref} className={`rounded-[2rem] border transition-all duration-300 ${activeStep === 1 ? 'border-primary shadow-lg ring-1 ring-primary/10' : 'border-slate-200'} bg-white p-6`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {completedSteps[1]
@@ -298,11 +317,11 @@ const Checkout = () => {
                   </p>
                 </div>
               </div>
-              <button className="rounded-full bg-slate-100 px-5 py-2 text-xs font-extrabold tracking-wide text-slate-400">MODIFY</button>
+              <button onClick={() => setActiveStep(1)} className="rounded-full bg-slate-100 px-5 py-2 text-xs font-extrabold tracking-wide text-slate-400">MODIFY</button>
             </div>
           </section>
 
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6">
+          <section ref={step2Ref} className={`rounded-[2rem] border transition-all duration-300 ${activeStep === 2 ? 'border-primary shadow-lg ring-1 ring-primary/10' : 'border-slate-200'} bg-white p-6`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {completedSteps[2]
@@ -311,164 +330,176 @@ const Checkout = () => {
                 <div>
                   <p className={stepTitleClass}>STEP 2</p>
                   <h2 className="text-[2rem] font-black text-secondary leading-none">Delivery Address</h2>
-                  <p className="text-slate-500 text-sm mt-2">
-                    {selectedAddress ? `${selectedAddress.name}, ${selectedAddress.city}` : 'Select delivery address'}
-                  </p>
+                  {activeStep !== 2 && (
+                    <p className="text-slate-500 text-sm mt-2">
+                      {selectedAddress ? `${selectedAddress.name}, ${selectedAddress.city}` : 'Select delivery address'}
+                    </p>
+                  )}
                 </div>
               </div>
-              <button className="rounded-full bg-slate-100 px-5 py-2 text-xs font-extrabold tracking-wide text-slate-400">MODIFY</button>
+              {activeStep !== 2 && (
+                <button onClick={() => setActiveStep(2)} className="rounded-full bg-slate-100 px-5 py-2 text-xs font-extrabold tracking-wide text-slate-400">MODIFY</button>
+              )}
             </div>
 
-            <div className="mt-5 grid gap-3">
-              {addresses.map((addr) => {
-                const active = selectedAddressId === addr._id;
-                return (
-                  <label
-                    key={addr._id}
-                    className={`rounded-2xl border p-4 cursor-pointer transition-colors ${active ? 'border-secondary bg-slate-50' : 'border-slate-200 hover:border-slate-300'}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-2">
-                        <input
-                          type="radio"
-                          checked={active}
-                          onChange={() => setSelectedAddressId(addr._id)}
-                          className="mt-1"
-                        />
-                        <div>
-                          <p className="font-bold text-secondary">{addr.name}</p>
-                          <p className="text-sm text-slate-500">
-                            {addr.locality}, {addr.address}, {addr.city}, {addr.state} - {addr.pincode}
-                          </p>
+            {activeStep === 2 && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="mt-5 grid gap-3">
+                  {addresses.map((addr) => {
+                    const active = selectedAddressId === addr._id;
+                    return (
+                      <label
+                        key={addr._id}
+                        className={`rounded-2xl border p-4 cursor-pointer transition-colors ${active ? 'border-secondary bg-slate-50' : 'border-slate-200 hover:border-slate-300'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="radio"
+                              checked={active}
+                              onChange={() => setSelectedAddressId(addr._id)}
+                              className="mt-1"
+                            />
+                            <div>
+                              <p className="font-bold text-secondary">{addr.name}</p>
+                              <p className="text-sm text-slate-500">
+                                {addr.locality}, {addr.address}, {addr.city}, {addr.state} - {addr.pincode}
+                              </p>
+                            </div>
+                          </div>
+                          <MapPin size={16} className="text-slate-300" />
                         </div>
-                      </div>
-                      <MapPin size={16} className="text-slate-300" />
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setError('');
-                  setShowAddressForm((v) => !v);
-                }}
-                className="text-sm font-bold text-slate-400 hover:text-secondary"
-              >
-                + MANAGE ADDRESSES
-              </button>
-              <button
-                type="button"
-                onClick={goToOrderSummary}
-                className="ml-auto rounded-2xl bg-secondary text-white px-6 py-3 text-sm font-extrabold tracking-widest"
-              >
-                DELIVER TO THIS ADDRESS
-              </button>
-            </div>
-
-            {showAddressForm && (
-              <div className="mt-4 rounded-2xl border border-slate-200 p-4">
-                <p className="text-sm font-bold text-secondary mb-3">Add New Address</p>
-                <div className="grid md:grid-cols-2 gap-2">
-                  <input className="input-field" placeholder="Name" value={addressForm.name} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, name: e.target.value })); }} />
-                  <input className="input-field" placeholder="Phone" value={addressForm.phone} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, phone: e.target.value })); }} />
-                  <input className="input-field" placeholder="Pincode" value={addressForm.pincode} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, pincode: e.target.value })); }} />
-                  <input className="input-field" placeholder="Locality" value={addressForm.locality} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, locality: e.target.value })); }} />
-                  <input className="input-field md:col-span-2" placeholder="Address" value={addressForm.address} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, address: e.target.value })); }} />
-                  <input className="input-field" placeholder="City" value={addressForm.city} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, city: e.target.value })); }} />
-                  <input className="input-field" placeholder="State" value={addressForm.state} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, state: e.target.value })); }} />
+                      </label>
+                    );
+                  })}
                 </div>
-                <button type="button" className="btn-primary mt-3" onClick={addAddress} disabled={savingAddress}>
-                  {savingAddress ? 'Saving...' : 'Save Address'}
-                </button>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError('');
+                      setShowAddressForm((v) => !v);
+                    }}
+                    className="text-sm font-bold text-slate-400 hover:text-secondary"
+                  >
+                    + {showAddressForm ? 'CANCEL' : 'ADD NEW ADDRESS'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToOrderSummary}
+                    className="ml-auto rounded-2xl bg-secondary text-white px-6 py-3 text-sm font-extrabold tracking-widest"
+                  >
+                    DELIVER TO THIS ADDRESS
+                  </button>
+                </div>
+
+                {showAddressForm && (
+                  <div className="mt-4 rounded-2xl border border-slate-200 p-4 bg-slate-50">
+                    <p className="text-sm font-bold text-secondary mb-3">Add New Address</p>
+                    <div className="grid md:grid-cols-2 gap-2">
+                      <input className="input-field" placeholder="Name" value={addressForm.name} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, name: e.target.value })); }} />
+                      <input className="input-field" placeholder="Phone" value={addressForm.phone} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, phone: e.target.value })); }} />
+                      <input className="input-field" placeholder="Pincode" value={addressForm.pincode} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, pincode: e.target.value })); }} />
+                      <input className="input-field" placeholder="Locality" value={addressForm.locality} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, locality: e.target.value })); }} />
+                      <input className="input-field md:col-span-2" placeholder="Address" value={addressForm.address} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, address: e.target.value })); }} />
+                      <input className="input-field" placeholder="City" value={addressForm.city} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, city: e.target.value })); }} />
+                      <input className="input-field" placeholder="State" value={addressForm.state} onChange={(e) => { setError(''); setAddressForm((v) => ({ ...v, state: e.target.value })); }} />
+                    </div>
+                    {error && <p className="text-rose-500 text-xs mt-2 font-bold">{error}</p>}
+                    <button type="button" className="btn-primary mt-3 w-full" onClick={addAddress} disabled={savingAddress}>
+                      {savingAddress ? 'Saving...' : 'Save and Deliver Here'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </section>
 
-          <section className="rounded-[2rem] overflow-hidden border border-slate-200 bg-white">
+          <section ref={step3Ref} className={`rounded-[2rem] overflow-hidden border transition-all duration-300 ${activeStep === 3 ? 'border-primary shadow-lg ring-1 ring-primary/10' : 'border-slate-200'} bg-white`}>
             <div className="bg-white text-secondary px-6 py-5 border-b border-slate-200">
-              <div className="flex items-center gap-3">
-                {completedSteps[3]
-                  ? <CheckCircle2 className="text-emerald-500" size={30} />
-                  : <Circle className="text-slate-300" size={30} />}
-                <div>
-                  <p className={stepTitleClass}>STEP 3</p>
-                  <h2 className="text-[2rem] font-black text-secondary leading-none">Order Summary</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {completedSteps[3]
+                    ? <CheckCircle2 className="text-emerald-500" size={30} />
+                    : <Circle className="text-slate-300" size={30} />}
+                  <div>
+                    <p className={stepTitleClass}>STEP 3</p>
+                    <h2 className="text-[2rem] font-black text-secondary leading-none">Order Summary</h2>
+                  </div>
                 </div>
+                {activeStep !== 3 && completedSteps[3] && (
+                  <button onClick={() => setActiveStep(3)} className="rounded-full bg-slate-100 px-5 py-2 text-xs font-extrabold tracking-wide text-slate-400">VIEW</button>
+                )}
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-3">
-              {cart.map((item) => {
-                const itemDiscount = item.mrp && item.mrp > item.price
-                  ? Math.round(((item.mrp - item.price) / item.mrp) * 100)
-                  : 0;
+            {activeStep === 3 && (
+              <div className="p-4 sm:p-6 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                {cart.map((item) => {
+                  const itemDiscount = item.mrp && item.mrp > item.price
+                    ? Math.round(((item.mrp - item.price) / item.mrp) * 100)
+                    : 0;
 
-                return (
-                  <div key={item._id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-                    <div className="p-5 flex items-start gap-4 sm:gap-6">
-                      <div className="h-28 w-28 rounded-2xl border border-slate-100 bg-slate-50 p-2 shrink-0 overflow-hidden">
-                        <img
-                          src={item.imageUrl || ''}
-                          alt={item.name}
-                          className="h-full w-full object-contain"
-                        />
-                      </div>
+                  return (
+                    <div key={item._id} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                      <div className="p-5 flex items-start gap-4 sm:gap-6">
+                        <div className="h-28 w-28 rounded-2xl border border-slate-100 bg-slate-50 p-2 shrink-0 overflow-hidden">
+                          <img
+                            src={item.imageUrl || ''}
+                            alt={item.name}
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-black text-[2rem] leading-none text-secondary">{item.name}</p>
-                            <div className="mt-3 flex items-center gap-3">
-                              <p className="font-black text-[2.4rem] leading-none text-secondary">Rs.{item.price}</p>
-                              {item.mrp && <p className="text-slate-300 line-through font-bold">Rs.{item.mrp}</p>}
-                              {itemDiscount > 0 && (
-                                <span className="rounded-md bg-emerald-100 text-emerald-600 px-2 py-1 text-xs font-extrabold">{itemDiscount}% OFF</span>
-                              )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-black text-[2rem] leading-none text-secondary">{item.name}</p>
+                              <div className="mt-3 flex items-center gap-3">
+                                <p className="font-black text-[2.4rem] leading-none text-secondary">Rs.{item.price}</p>
+                                {item.mrp && <p className="text-slate-300 line-through font-bold">Rs.{item.mrp}</p>}
+                                {itemDiscount > 0 && (
+                                  <span className="rounded-md bg-emerald-100 text-emerald-600 px-2 py-1 text-xs font-extrabold">{itemDiscount}% OFF</span>
+                                )}
+                              </div>
+                              <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-1.5 text-xs font-extrabold text-emerald-600">
+                                <Truck size={14} /> EXPRESS DELIVERY
+                              </div>
                             </div>
-                            <div className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-1.5 text-xs font-extrabold text-emerald-600">
-                              <Truck size={14} /> EXPRESS DELIVERY
-                            </div>
+                            <p className="text-sm text-slate-300 font-extrabold">QTY: {item.quantity}</p>
                           </div>
-                          <p className="text-sm text-slate-300 font-extrabold">QUANTITY: {item.quantity}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-50 border-t border-slate-100 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex items-center gap-3 text-sm text-slate-500">
-                        <span className="h-10 w-10 rounded-xl border border-slate-200 bg-white grid place-items-center text-slate-400">
-                          <Mail size={16} />
-                        </span>
-                        <div>
-                          <p className="italic">Order details will be sent to</p>
-                          <p className="font-bold text-secondary">{currentUser?.email || 'your email'}</p>
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={goToPayment}
-                        className="rounded-[1.5rem] bg-secondary text-white px-8 py-3 text-sm font-extrabold tracking-widest"
-                      >
-                        CONTINUE TO PAYMENT
-                      </button>
+                      <div className="bg-slate-50 border-t border-slate-100 px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-center gap-3 text-sm text-slate-500">
+                          <span className="h-10 w-10 rounded-xl border border-slate-200 bg-white grid place-items-center text-slate-400">
+                            <Mail size={16} />
+                          </span>
+                          <div>
+                            <p>Updates will be sent to</p>
+                            <p className="font-bold text-secondary">{currentUser?.email || 'your email'}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={goToPayment}
+                          className="rounded-[1.5rem] bg-secondary text-white px-8 py-3 text-sm font-extrabold tracking-widest"
+                        >
+                          CONTINUE TO PAYMENT
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </section>
 
-          <section className="rounded-[2rem] overflow-hidden border border-slate-200 bg-white">
-            <button
-              type="button"
-              onClick={goToPayment}
-              className="w-full text-left px-6 py-5 transition-colors bg-white text-secondary border-b border-slate-200"
-            >
+          <section ref={step4Ref} className={`rounded-[2rem] overflow-hidden border transition-all duration-300 ${activeStep === 4 ? 'border-primary shadow-lg ring-1 ring-primary/10' : 'border-slate-200'} bg-white`}>
+            <div className="bg-white text-secondary px-6 py-5 border-b border-slate-200">
               <div className="flex items-center gap-3">
                 {completedSteps[4]
                   ? <CheckCircle2 className="text-emerald-500" size={30} />
@@ -478,50 +509,50 @@ const Checkout = () => {
                   <h2 className="text-[2rem] font-black text-secondary leading-none">Payment Method</h2>
                 </div>
               </div>
-            </button>
+            </div>
 
             {activeStep === 4 && (
-              <div className="p-6 space-y-3">
-              <label className={`rounded-2xl border p-4 flex items-center justify-between cursor-pointer ${paymentMethod === 'COD' ? 'border-secondary' : 'border-slate-200'}`}>
-                <div className="flex items-center gap-3">
-                  {paymentMethod === 'COD' ? <CheckCircle2 className="text-secondary" size={20} /> : <Circle size={20} className="text-slate-300" />}
-                  <div>
-                    <p className="font-black text-[1.75rem] leading-none text-secondary">Cash on Delivery</p>
-                    <p className="text-xs text-slate-400 mt-2">Pay when your order is delivered.</p>
+              <div className="p-6 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <label className={`rounded-2xl border p-4 flex items-center justify-between cursor-pointer transition-all ${paymentMethod === 'COD' ? 'border-secondary bg-slate-50 shadow-sm' : 'border-slate-200'}`}>
+                  <div className="flex items-center gap-3">
+                    {paymentMethod === 'COD' ? <CheckCircle2 className="text-secondary" size={20} /> : <Circle size={20} className="text-slate-300" />}
+                    <div>
+                      <p className="font-black text-[1.75rem] leading-none text-secondary">Cash on Delivery</p>
+                      <p className="text-xs text-slate-400 mt-2">Pay when your order is delivered.</p>
+                    </div>
                   </div>
-                </div>
-                <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'COD'} onChange={() => setPaymentMethod('COD')} />
-                <Truck className="text-slate-300" size={22} />
-              </label>
+                  <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'COD'} onChange={() => setPaymentMethod('COD')} />
+                  <Truck className="text-slate-300" size={22} />
+                </label>
 
-              <label className={`rounded-2xl border p-4 flex items-center justify-between cursor-pointer ${paymentMethod === 'Online' ? 'border-secondary' : 'border-slate-200'}`}>
-                <div className="flex items-center gap-3">
-                  {paymentMethod === 'Online' ? <CheckCircle2 className="text-secondary" size={20} /> : <Circle size={20} className="text-slate-300" />}
-                  <div>
-                    <p className="font-black text-[1.75rem] leading-none text-secondary">Pay Online</p>
-                    <p className="text-xs text-slate-400 mt-2">UPI, cards, netbanking via Razorpay.</p>
+                <label className={`rounded-2xl border p-4 flex items-center justify-between cursor-pointer transition-all ${paymentMethod === 'Online' ? 'border-secondary bg-slate-50 shadow-sm' : 'border-slate-200'}`}>
+                  <div className="flex items-center gap-3">
+                    {paymentMethod === 'Online' ? <CheckCircle2 className="text-secondary" size={20} /> : <Circle size={20} className="text-slate-300" />}
+                    <div>
+                      <p className="font-black text-[1.75rem] leading-none text-secondary">Pay Online</p>
+                      <p className="text-xs text-slate-400 mt-2">UPI, cards, netbanking via Razorpay.</p>
+                    </div>
                   </div>
-                </div>
-                <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'Online'} onChange={() => setPaymentMethod('Online')} />
-                <CreditCard className="text-slate-300" size={22} />
-              </label>
+                  <input type="radio" name="payment" className="hidden" checked={paymentMethod === 'Online'} onChange={() => setPaymentMethod('Online')} />
+                  <CreditCard className="text-slate-300" size={22} />
+                </label>
 
-              <div className="mt-5 border-t border-slate-100 pt-5 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-extrabold tracking-[0.2em] text-slate-400">TOTAL AMOUNT PAYABLE</p>
-                  <p className="font-black text-[3rem] leading-none text-secondary mt-2">Rs. {total}</p>
+                <div className="mt-5 border-t border-slate-100 pt-5 flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-extrabold tracking-[0.2em] text-slate-400">TOTAL AMOUNT PAYABLE</p>
+                    <p className="font-black text-[3.25rem] leading-none text-secondary mt-2">Rs. {total}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={placeOrder}
+                    disabled={placing}
+                    className="rounded-[1.5rem] bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-white px-10 py-5 text-sm font-black tracking-[0.2em] shadow-lg shadow-emerald-200"
+                  >
+                    {placing ? 'PROCESSING...' : paymentMethod === 'Online' ? 'PAY NOW' : 'PLACE ORDER'}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={placeOrder}
-                  disabled={placing}
-                  className="rounded-[1.5rem] bg-emerald-300 hover:bg-emerald-400 disabled:opacity-60 text-white px-10 py-5 text-sm font-extrabold tracking-[0.2em]"
-                >
-                  {placing ? 'PROCESSING...' : paymentMethod === 'Online' ? 'PAY NOW' : 'PLACE ORDER'}
-                </button>
-              </div>
 
-              {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+                {error && <p className="text-rose-500 text-sm mt-3 font-bold">{error}</p>}
               </div>
             )}
           </section>
@@ -565,7 +596,7 @@ const Checkout = () => {
 
           <div className="mt-6 border-t border-slate-200 pt-6">
             <p className="text-sm font-extrabold tracking-[0.2em] text-secondary">TOTAL AMOUNT</p>
-            <p className="text-[4rem] leading-none font-black text-secondary mt-2">Rs. {total}</p>
+            <p className="text-[4.5rem] leading-none font-black text-secondary mt-2">Rs. {total}</p>
             <p className="text-emerald-500 font-extrabold tracking-wide mt-2">YOU SAVE: Rs. {discount}</p>
           </div>
         </aside>
@@ -575,3 +606,4 @@ const Checkout = () => {
 };
 
 export default Checkout;
+

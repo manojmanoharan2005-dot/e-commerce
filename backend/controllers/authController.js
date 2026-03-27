@@ -4,14 +4,16 @@ import Order from '../models/Order.js';
 import Wishlist from '../models/Wishlist.js';
 import https from 'https';
 import { randomInt } from 'crypto';
-import { sendLoginOtpEmail } from '../services/mailService.js';
+import { sendLoginOtpEmail, sendVerificationOtpEmail } from '../services/mailService.js';
 
 const otpStore = new Map();
 const passwordOtpStore = new Map();
+const verificationOtpStore = new Map();
+const signupDataStore = new Map();
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_RESEND_GAP_MS = 45 * 1000;
 const OTP_MAX_ATTEMPTS = 5;
-const OTP_MAIL_TIMEOUT_MS = 8000;
+const OTP_MAIL_TIMEOUT_MS = 4000; // Reduced from 8000 for better responsiveness
 
 const normalizeEmail = (email = '') => email.trim().toLowerCase();
 
@@ -99,18 +101,30 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: 'Name, email, and password are required' });
     }
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) {
+    const normalizedEmail = email.toLowerCase();
+    const normalizedPhone = phone?.trim();
+
+    if (!normalizedPhone || !/^\d{10}$/.test(normalizedPhone)) {
+      return res.status(400).json({ message: 'Valid 10-digit phone number is required' });
+    }
+
+    const existingEmail = await User.findOne({ email: normalizedEmail });
+    if (existingEmail) {
       return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    const existingPhone = await User.findOne({ phone: normalizedPhone });
+    if (existingPhone) {
+      return res.status(400).json({ message: 'Phone number already registered' });
     }
 
     const userPayload = {
       name,
-      email,
-      password
+      email: normalizedEmail,
+      password,
+      phone: normalizedPhone
     };
 
-    if (phone?.trim()) userPayload.phone = phone.trim();
     if (username?.trim()) userPayload.username = username.trim().toLowerCase();
 
     if (address && typeof address === 'object') {
@@ -125,15 +139,76 @@ export const register = async (req, res) => {
       if (hasAddressValue) userPayload.address = cleanedAddress;
     }
 
-    const user = await User.create(userPayload);
-    const token = user.generateToken();
+    // Instead of creating user now, we store in temporary map and send OTP
+    const otp = String(randomInt(0, 1000000)).padStart(6, '0');
+    
+    signupDataStore.set(email.toLowerCase(), {
+      payload: userPayload,
+      otp,
+      expiresAt: Date.now() + OTP_TTL_MS,
+      attempts: 0
+    });
 
-    res.status(201).json({ token, user: getPublicUser(user) });
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEV] Signup Verification OTP for ${email}: ${otp}`);
+      sendVerificationOtpEmail({ to: email, name, otp }).catch(() => {});
+    } else {
+      await sendVerificationOtpEmail({ to: email, name, otp }).catch(() => {});
+    }
+
+    res.status(200).json({ 
+      message: 'OTP sent to your email. Please verify to complete registration.',
+      requiresVerification: true,
+      email: email.toLowerCase()
+    });
   } catch (error) {
     if (error.code === 11000) {
       const field = Object.keys(error.keyPattern)[0];
       return res.status(400).json({ message: `${field} already taken` });
     }
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const verifyRegistrationOtp = async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email);
+    const otp = String(req.body?.otp || '').trim();
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    const entry = signupDataStore.get(email);
+    if (!entry) {
+      return res.status(400).json({ message: 'Registration session expired. Please register again.' });
+    }
+
+    if (Date.now() > entry.expiresAt) {
+      signupDataStore.delete(email);
+      return res.status(400).json({ message: 'OTP expired.' });
+    }
+
+    if (entry.attempts >= OTP_MAX_ATTEMPTS) {
+      signupDataStore.delete(email);
+      return res.status(429).json({ message: 'Too many invalid attempts.' });
+    }
+
+    if (entry.otp !== otp) {
+      entry.attempts += 1;
+      return res.status(401).json({ message: 'Invalid OTP' });
+    }
+
+    // Now verified! Create user in database.
+    const user = await User.create(entry.payload);
+    user.isEmailVerified = true;
+    await user.save();
+
+    signupDataStore.delete(email);
+
+    const token = user.generateToken();
+    res.status(201).json({ token, user: getPublicUser(user) });
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
@@ -193,22 +268,30 @@ export const requestLoginOtp = async (req, res) => {
       attempts: 0
     });
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEV] Login OTP for ${email}: ${otp}`);
+      // In dev, send the email in background and respond immediately to UI
+      sendLoginOtpEmail({ to: email, name: user.name, otp }).catch(() => {});
+      return res.json({ 
+        message: 'Development Mode: OTP logged to console and sent to email.',
+        devOtp: otp 
+      });
+    }
+
     let mailSent = false;
     try {
       mailSent = await withTimeout(
         sendLoginOtpEmail({ to: email, name: user.name, otp }),
         OTP_MAIL_TIMEOUT_MS
       );
-    } catch {
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(500).json({ message: 'Could not send OTP right now. Please try again.' });
-      }
+    } catch (err) {
+      console.error('OTP delivery error:', err.message);
     }
 
     const payload = { message: 'OTP sent successfully. Please check your email.' };
-    if (!mailSent && process.env.NODE_ENV !== 'production') {
-      payload.devOtp = otp;
-      payload.message = 'Mail is not configured. Using development OTP fallback.';
+    if (!mailSent) {
+      // In production, if mail fails to send within timeout, we still show the error
+      return res.status(500).json({ message: 'Could not send OTP email. Please try again later.' });
     }
 
     return res.json(payload);
@@ -290,22 +373,29 @@ export const requestPasswordOtp = async (req, res) => {
       attempts: 0
     });
 
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[DEV] Password Reset OTP for ${email}: ${otp}`);
+      // In dev, send in background, respond fast
+      sendLoginOtpEmail({ to: email, name: req.user.name, otp }).catch(() => {});
+      return res.json({ 
+        message: 'Development Mode: OTP logged to console & sent in background.',
+        devOtp: otp 
+      });
+    }
+
     let mailSent = false;
     try {
       mailSent = await withTimeout(
         sendLoginOtpEmail({ to: email, name: req.user.name, otp }),
         OTP_MAIL_TIMEOUT_MS
       );
-    } catch {
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(500).json({ message: 'Could not send OTP right now. Please try again.' });
-      }
+    } catch (err) {
+      console.error('Password OTP delivery error:', err.message);
     }
 
     const payload = { message: 'OTP sent successfully. Please check your email.' };
-    if (!mailSent && process.env.NODE_ENV !== 'production') {
-      payload.devOtp = otp;
-      payload.message = 'Mail is not configured. Using development OTP fallback.';
+    if (!mailSent) {
+      return res.status(500).json({ message: 'Could not send OTP email. Please try again.' });
     }
 
     return res.json(payload);
@@ -313,6 +403,44 @@ export const requestPasswordOtp = async (req, res) => {
     return res.status(500).json({ message: error.message || 'Failed to request OTP' });
   }
 };
+
+export const verifyPasswordOtp = async (req, res) => {
+  try {
+    const email = normalizeEmail(req.user?.email);
+    const otp = String(req.body?.otp || '').trim();
+
+    if (!otp) {
+      return res.status(400).json({ message: 'OTP is required' });
+    }
+
+    const entry = passwordOtpStore.get(email);
+    if (!entry) {
+      return res.status(400).json({ message: 'OTP not requested or expired. Request a new OTP.' });
+    }
+    if (Date.now() > entry.expiresAt) {
+      passwordOtpStore.delete(email);
+      return res.status(400).json({ message: 'OTP expired. Please request a new OTP.' });
+    }
+    if (entry.attempts >= OTP_MAX_ATTEMPTS) {
+      passwordOtpStore.delete(email);
+      return res.status(429).json({ message: 'Too many invalid attempts. Please request a new OTP.' });
+    }
+    if (entry.otp !== otp) {
+      entry.attempts += 1;
+      passwordOtpStore.set(email, entry);
+      return res.status(401).json({ message: 'Invalid OTP' });
+    }
+
+    // Mark as verified
+    entry.verified = true;
+    passwordOtpStore.set(email, entry);
+
+    return res.json({ message: 'OTP verified successfully. You can now set a new password.' });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || 'Verification failed' });
+  }
+};
+
 
 export const changePasswordWithOtp = async (req, res) => {
   try {
@@ -352,6 +480,12 @@ export const changePasswordWithOtp = async (req, res) => {
     if (!user) {
       passwordOtpStore.delete(email);
       return res.status(404).json({ message: 'Account not found' });
+    }
+
+    // Check if new password is same as current one
+    const isSame = await user.comparePassword(newPassword);
+    if (isSame) {
+      return res.status(400).json({ message: 'New password cannot be the same as your current password' });
     }
 
     user.password = newPassword;

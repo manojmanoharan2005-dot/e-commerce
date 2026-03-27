@@ -27,7 +27,7 @@ const Wishlist = () => {
       <div className="space-y-5">
         <div className="card p-8 md:p-10">
           <p className="text-xs tracking-[0.18em] font-extrabold text-slate-400">ACCOUNT</p>
-          <h1 className="text-[3rem] font-black italic leading-none text-slate-800 mt-2">Wishlist</h1>
+          <h1 className="text-[3rem] font-black leading-none text-slate-800 mt-2">Wishlist</h1>
         </div>
 
         {wishlist.length === 0 ? (

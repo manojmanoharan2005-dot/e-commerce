@@ -8,6 +8,9 @@ import {
 export const getProducts = async (req, res) => {
   try {
     const { category, search, minPrice, maxPrice, inStock, trending, flashSale, sort } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
 
     const query = { isActive: true };
 
@@ -29,12 +32,29 @@ export const getProducts = async (req, res) => {
     else if (sort === 'newest') sortObj.createdAt = -1;
     else sortObj.rating = -1;
 
-    const products = await Product.find(query).sort(sortObj);
-    res.json({ products });
+    // Use lean() for faster read performance
+    const [products, total] = await Promise.all([
+      Product.find(query).sort(sortObj).skip(skip).limit(limit).lean(),
+      Product.countDocuments(query)
+    ]);
+
+    console.log(`[API] Found ${products.length} products (Total: ${total}) for query:`, JSON.stringify(query));
+
+    res.json({ 
+      products, 
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
+    console.error('[API ERROR] /products:', error);
     res.status(500).json({ message: error.message });
   }
 };
+
 
 export const searchProducts = async (req, res) => {
   try {
@@ -49,9 +69,18 @@ export const searchProducts = async (req, res) => {
     const products = await Product.find(
       { isActive: true, $text: { $search: searchString } },
       { score: { $meta: 'textScore' } }
-    ).sort({ score: { $meta: 'textScore' } });
+    ).sort({ score: { $meta: 'textScore' } }).lean();
 
-    res.json({ products, keywords });
+    res.json({ 
+      products, 
+      keywords,
+      pagination: {
+        total: products.length,
+        page: 1,
+        limit: products.length,
+        pages: 1
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

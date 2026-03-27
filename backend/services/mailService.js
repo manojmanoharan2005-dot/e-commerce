@@ -264,10 +264,67 @@ export const sendLoginOtpEmail = async ({ to, name, otp }) => {
     await sendViaBrevoApi(payload);
     return true;
   } catch (error) {
-    console.error('OTP email send failed:', error.message);
     return false;
   }
 };
+
+export const sendVerificationOtpEmail = async ({ to, name, otp }) => {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Verify Your AgriStore Account</title></head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background:#f3f4f6;">
+  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+    <div style="background:#0f172a;padding:36px;text-align:center;">
+      <h1 style="color:#10b981;margin:0;font-size:32px;letter-spacing:-0.5px;">🌱 AgriStore</h1>
+      <p style="color:#64748b;margin:8px 0 0;font-size:14px;">Verify Your Farmer Account</p>
+    </div>
+    <div style="padding:48px 32px;text-align:center;">
+      <h2 style="margin:0 0 16px;color:#0f172a;font-size:24px;">Confirm Your Email</h2>
+      <p style="margin:0 0 24px;color:#4b5563;font-size:16px;">Hi ${name || 'there'},</p>
+      <p style="margin:0 0 36px;color:#6b7280;font-size:15px;line-height:1.6;max-width:440px;margin-left:auto;margin-right:auto;">
+        Welcome to AgriStore! To complete your registration and start exploring our smart agricultural tools, please verify your email using this code.
+      </p>
+      <div style="background:#f0fdf4;border:2px dashed #6ee7b7;border-radius:16px;overflow:hidden;max-width:400px;margin:0 auto 36px;">
+        <table style="width:100%;" cellpadding="24">
+          <tr>
+            <td style="vertical-align:middle;">
+              <p style="margin:0;color:#166534;font-size:12px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;">Registration OTP</p>
+              <p style="margin:16px 0 0;color:#064e3b;font-size:42px;font-weight:900;letter-spacing:10px;">${otp}</p>
+            </td>
+            <td style="vertical-align:middle;text-align:right;width:90px;padding-left:0;">
+              <div style="transform:scale(0.85);transform-origin:right center;">${renderStatusSealHtml('otp', new Date())}</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <p style="margin:0;color:#ef4444;font-size:14px;font-weight:600;">⚠️ This code expires in 10 minutes.</p>
+    </div>
+    <div style="background:#f8fafc;padding:24px;text-align:center;border-top:1px solid #e2e8f0;">
+      <p style="color:#64748b;margin:0;font-size:13px;">© ${new Date().getFullYear()} AgriStore — Empowering Indian Farmers 🌾</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const payload = {
+    sender: {
+      name: process.env.BREVO_SENDER_NAME || 'AgriStore',
+      email: process.env.BREVO_SENDER_EMAIL || 'noreply@agristore.com'
+    },
+    to: [{ email: to, name: name || 'User' }],
+    subject: 'Confirm your AgriStore registration',
+    htmlContent: html
+  };
+
+  try {
+    await sendViaBrevoApi(payload);
+    return true;
+  } catch (error) {
+    console.error('Verification email send failed:', error.message);
+    return false;
+  }
+};
+
 
 const getStatusMeta = (status) => {
   const map = {

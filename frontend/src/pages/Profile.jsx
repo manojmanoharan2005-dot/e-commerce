@@ -43,7 +43,7 @@ const Profile = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
           <div>
             <p className="text-xs tracking-[0.18em] font-extrabold text-slate-400">ACCOUNT</p>
-            <h1 className="text-[3rem] font-black italic leading-none text-slate-800 mt-2">My Profile</h1>
+            <h1 className="text-[3rem] font-black leading-none text-slate-800 mt-2">My Profile</h1>
           </div>
           {!isEditing ? (
             <button

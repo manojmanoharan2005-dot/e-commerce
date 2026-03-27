@@ -230,7 +230,7 @@ const MyOrders = () => {
                       <p className="inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold tracking-wide text-slate-400">
                         CATEGORY: GENERAL
                       </p>
-                      <p className="mt-3 text-[2rem] leading-none font-black italic text-slate-800">
+                      <p className="mt-3 text-[2rem] leading-none font-black text-slate-800">
                         {firstItem?.name || 'Order Item'}
                       </p>
                       <p className="mt-3 text-sm font-extrabold text-slate-400 tracking-[0.08em]">
