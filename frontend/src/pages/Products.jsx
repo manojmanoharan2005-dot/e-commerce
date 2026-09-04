@@ -1,8 +1,31 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Filter, SlidersHorizontal, Search, RefreshCw, X, ArrowUpDown, ChevronDown } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
+import ProductImage from '../components/ProductImage';
+import { ProductCardSkeleton } from '../components/Skeleton';
+import Toast from '../components/Toast';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+
+const categoriesList = [
+  'All',
+  'Seeds',
+  'Organic',
+  'Fertilizer',
+  'Pesticide',
+  'Bio-Fertilizer',
+  'Equipment',
+  'Chemical',
+  'Irrigation'
+];
+
+const sortOptions = [
+  { label: 'Popularity', value: 'popularity' },
+  { label: 'Price: Low to High', value: 'price_asc' },
+  { label: 'Price: High to Low', value: 'price_desc' },
+  { label: 'Newest Arrivals', value: 'newest' }
+];
 
 const Products = () => {
   const { isAuthenticated } = useAuth();
@@ -11,6 +34,8 @@ const Products = () => {
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1 });
   const [wishlistIds, setWishlistIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
+  const [toastMessage, setToastMessage] = useState('');
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
   const category = searchParams.get('category') || '';
   const search = searchParams.get('search') || '';
@@ -57,6 +82,8 @@ const Products = () => {
           setProducts(data.products || []);
           setPagination(data.pagination || { total: 0, page: 1, pages: 1 });
         }
+      } catch (err) {
+        console.error('Failed to load products:', err);
       } finally {
         setLoading(false);
       }
@@ -68,48 +95,97 @@ const Products = () => {
     loadWishlistIds();
   }, [isAuthenticated]);
 
-  const categories = useMemo(
-    () => ['All', 'Organic', 'Seeds', 'Pesticide', 'Equipment', 'Chemical', 'Bio-Fertilizer'],
-    []
-  );
-  const sortTabs = useMemo(
-    () => [
-      { label: 'POPULAR', value: 'popularity' },
-      { label: 'LOWEST PRICE', value: 'price_asc' },
-      { label: 'HIGHEST PRICE', value: 'price_desc' },
-      { label: 'LATEST ARRIVAL', value: 'newest' }
-    ],
-    []
-  );
-
   const updateParam = (key, value) => {
     const next = new URLSearchParams(searchParams);
     if (!value || value === 'All' || value === 'false') next.delete(key);
     else next.set(key, value);
-    
-    // Reset page on filter change
+
     if (key !== 'page') next.delete('page');
-    
     setSearchParams(next);
   };
 
-  return (
-    <div className="page-container py-8">
-      <div className="grid lg:grid-cols-[300px_1fr] gap-6 items-start">
-        <aside className="card p-8 lg:sticky lg:top-24 h-fit">
-          <h2 className="text-[2rem] font-black text-slate-800">Filters</h2>
+  const clearAllFilters = () => {
+    setSearchParams({});
+  };
 
-          <div className="mt-8">
-            <p className="text-xs tracking-[0.18em] font-extrabold text-slate-400">COLLECTIONS</p>
-            <div className="mt-4 space-y-2">
-              {categories.map((cat) => {
+  const hasActiveFilters = Boolean(category || search || minPrice || maxPrice || inStock === 'true');
+
+  return (
+    <div className="page-container py-8 space-y-8">
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
+
+      {/* Header Banner */}
+      <div className="bg-gradient-to-r from-[#0F382C] to-[#09251D] text-white rounded-3xl p-6 sm:p-10 relative overflow-hidden shadow-lg">
+        <div className="relative z-10 space-y-2">
+          <div className="flex items-center gap-2 text-xs font-extrabold text-emerald-400 tracking-wider uppercase">
+            <Link to="/" className="hover:underline">HOME</Link>
+            <span>/</span>
+            <span>MARKETPLACE</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight">
+            {search ? `Search Results` : category ? `${category} Products` : `Agri Marketplace`}
+          </h1>
+          <p className="text-sm text-slate-300 font-medium">
+            {search
+              ? `Showing matched results for "${search}"`
+              : `Explore ${pagination.total} certified agricultural inputs with doorstep delivery.`}
+          </p>
+        </div>
+      </div>
+
+      {/* Category Strip Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+        {categoriesList.map((cat) => {
+          const active = (category || 'All') === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => updateParam('category', cat)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                active
+                  ? 'bg-agri-forest text-white shadow-sm'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              {cat}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Main Content Layout */}
+      <div className="grid lg:grid-cols-12 gap-8 items-start">
+        {/* Desktop Sidebar Filter (4 Cols on 12-col grid = 3 cols equivalent) */}
+        <aside className="hidden lg:block lg:col-span-3 card p-6 sticky top-28 space-y-6">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <h2 className="font-black text-lg text-slate-900 flex items-center gap-2">
+              <SlidersHorizontal size={18} className="text-agri-green" /> Filters
+            </h2>
+            {hasActiveFilters && (
+              <button
+                onClick={clearAllFilters}
+                className="text-xs font-bold text-rose-600 hover:underline flex items-center gap-1"
+              >
+                <RefreshCw size={12} /> Clear all
+              </button>
+            )}
+          </div>
+
+          {/* Categories Filter */}
+          <div className="space-y-2">
+            <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Category</label>
+            <div className="space-y-1">
+              {categoriesList.map((cat) => {
                 const active = (category || 'All') === cat;
                 return (
                   <button
-                    type="button"
                     key={cat}
                     onClick={() => updateParam('category', cat)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl font-semibold transition-colors ${active ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
+                      active
+                        ? 'bg-emerald-50 text-agri-forest font-extrabold border-l-4 border-agri-green'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
                   >
                     {cat}
                   </button>
@@ -118,96 +194,202 @@ const Products = () => {
             </div>
           </div>
 
-          <div className="mt-8 space-y-3">
-            <input className="input-field" placeholder="Min price" value={minPrice} onChange={(e) => updateParam('minPrice', e.target.value)} />
-            <input className="input-field" placeholder="Max price" value={maxPrice} onChange={(e) => updateParam('maxPrice', e.target.value)} />
-            <select className="input-field" value={inStock} onChange={(e) => updateParam('inStock', e.target.value)}>
-              <option value="false">All stock</option>
-              <option value="true">In stock only</option>
-            </select>
+          {/* Price Range Filter */}
+          <div className="space-y-3 pt-4 border-t border-slate-100">
+            <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider block">Price Range (Rs)</label>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={minPrice}
+                onChange={(e) => updateParam('minPrice', e.target.value)}
+                className="input-field py-2 text-xs"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={maxPrice}
+                onChange={(e) => updateParam('maxPrice', e.target.value)}
+                className="input-field py-2 text-xs"
+              />
+            </div>
+          </div>
+
+          {/* Stock Filter */}
+          <div className="pt-4 border-t border-slate-100">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={inStock === 'true'}
+                onChange={(e) => updateParam('inStock', e.target.checked ? 'true' : 'false')}
+                className="w-4 h-4 rounded text-agri-green focus:ring-agri-green"
+              />
+              <span className="text-xs font-bold text-slate-700">In Stock Only</span>
+            </label>
           </div>
         </aside>
 
-        <section>
-          <div className="card p-8 md:p-10">
-            <div className="flex flex-wrap items-center gap-3 text-xs font-extrabold tracking-[0.2em] text-slate-400">
-              <span>HOME</span>
-              <span className="text-slate-300">-</span>
-              <span className="text-slate-800 underline underline-offset-4">MARKETPLACE</span>
+        {/* Product Grid Area */}
+        <div className="lg:col-span-9 space-y-6">
+          {/* Top Sort & Filter Bar */}
+          <div className="card p-4 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setMobileFilterOpen(true)}
+                className="lg:hidden btn-secondary text-xs py-2 px-3 flex items-center gap-2"
+              >
+                <Filter size={16} /> Filters
+              </button>
+
+              <p className="text-xs font-bold text-slate-600">
+                Showing <span className="text-slate-900 font-extrabold">{products.length}</span> of{' '}
+                <span className="text-slate-900 font-extrabold">{pagination.total}</span> products
+              </p>
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-4">
-              <h1 className="text-[3.2rem] leading-none font-black text-slate-800">Marketplace</h1>
-              <span className="text-slate-400 text-xl font-semibold">Explore {pagination.total}</span>
+            {/* Sort Dropdown */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 hidden sm:inline">Sort By:</span>
+              <select
+                value={sort}
+                onChange={(e) => updateParam('sort', e.target.value)}
+                className="input-field py-2 px-3 text-xs font-bold bg-slate-50 cursor-pointer max-w-[180px]"
+              >
+                {sortOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
 
-            {search && (
-              <p className="mt-3 text-sm text-slate-500">Search results for <strong>{search}</strong></p>
-            )}
+          {/* Active Search / Filter Badges */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+              <span className="text-slate-400">Active Filters:</span>
+              {search && (
+                <span className="bg-slate-100 border border-slate-200 text-slate-800 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                  Query: "{search}" <X size={12} className="cursor-pointer" onClick={() => updateParam('search', '')} />
+                </span>
+              )}
+              {category && category !== 'All' && (
+                <span className="bg-slate-100 border border-slate-200 text-slate-800 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                  Category: {category} <X size={12} className="cursor-pointer" onClick={() => updateParam('category', '')} />
+                </span>
+              )}
+              {inStock === 'true' && (
+                <span className="bg-slate-100 border border-slate-200 text-slate-800 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                  In Stock Only <X size={12} className="cursor-pointer" onClick={() => updateParam('inStock', 'false')} />
+                </span>
+              )}
+              <button onClick={clearAllFilters} className="text-rose-600 hover:underline">
+                Clear all
+              </button>
+            </div>
+          )}
 
-            <div className="mt-6 rounded-2xl bg-slate-100 border border-slate-200 p-2 flex flex-wrap gap-2">
-              {sortTabs.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => updateParam('sort', tab.value)}
-                  className={`px-6 py-3 text-xs md:text-sm font-black tracking-wide rounded-xl transition-colors ${sort === tab.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  {tab.label}
-                </button>
+          {/* Grid or Skeletons or Empty State */}
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                <ProductCardSkeleton key={n} />
               ))}
             </div>
-
-            {loading ? (
-              <div className="min-h-[460px] grid place-items-center text-center">
-                <div>
-                  <div className="mx-auto h-14 w-14 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                  <p className="mt-5 text-xl font-extrabold tracking-[0.12em] text-slate-400">LOADING PRODUCTS...</p>
-                </div>
+          ) : products.length === 0 ? (
+            <div className="card p-12 text-center space-y-4 max-w-lg mx-auto my-8">
+              <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-full grid place-items-center mx-auto">
+                <Search size={32} />
               </div>
-            ) : products.length === 0 ? (
-              <div className="min-h-[260px] grid place-items-center text-center text-slate-500 text-lg font-semibold">No products found.</div>
-            ) : (
-                <>
-                <div className="mt-8 grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
-                  {products.map((product) => (
-                    <ProductCard
-                      key={product._id}
-                      product={{ ...product, isWishlisted: wishlistIds.has(product._id) }}
-                      onWishlistChange={loadWishlistIds}
-                    />
-                  ))}
-                </div>
+              <h3 className="text-xl font-black text-slate-900">No Products Found</h3>
+              <p className="text-xs text-slate-500 font-medium">
+                {search
+                  ? `We couldn't find any products matching "${search}". Try searching for alternative agricultural terms.`
+                  : `No products match your selected category or price filters.`}
+              </p>
+              <button onClick={clearAllFilters} className="btn-accent text-xs px-6 py-2.5 mx-auto">
+                Clear All Filters
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                {products.map((product) => (
+                  <ProductCard
+                    key={product._id}
+                    product={{ ...product, isWishlisted: wishlistIds.has(product._id) }}
+                    onWishlistChange={loadWishlistIds}
+                    onAddToCartToast={(msg) => setToastMessage(msg)}
+                  />
+                ))}
+              </div>
 
-                {pagination.pages > 1 && (
-                  <div className="mt-12 flex items-center justify-center gap-4 border-t border-slate-100 pt-10">
-                    <button
-                      disabled={page <= 1}
-                      onClick={() => updateParam('page', page - 1)}
-                      className="px-6 py-3 rounded-xl border border-slate-200 text-sm font-black tracking-widest hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all"
-                    >
-                      PREVIOUS
-                    </button>
-                    <span className="text-sm font-black text-slate-400 tracking-widest px-4">
-                      PAGE {pagination.page} OF {pagination.pages}
-                    </span>
-                    <button
-                      disabled={page >= pagination.pages}
-                      onClick={() => updateParam('page', page + 1)}
-                      className="px-6 py-3 rounded-xl border border-slate-200 text-sm font-black tracking-widest hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all"
-                    >
-                      NEXT
-                    </button>
-                  </div>
-                )}
-                </>
-            )}
-          </div>
-        </section>
+              {/* Pagination */}
+              {pagination.pages > 1 && (
+                <div className="flex items-center justify-center gap-3 pt-8 border-t border-slate-200">
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => updateParam('page', page - 1)}
+                    className="btn-secondary text-xs py-2.5 px-4 disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs font-black text-slate-600 px-2">
+                    Page {pagination.page} of {pagination.pages}
+                  </span>
+                  <button
+                    disabled={page >= pagination.pages}
+                    onClick={() => updateParam('page', page + 1)}
+                    className="btn-secondary text-xs py-2.5 px-4 disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Mobile Filter Modal */}
+      {mobileFilterOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex justify-end lg:hidden">
+          <div className="w-full max-w-xs bg-white h-full p-6 space-y-6 overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-4">
+              <h3 className="font-black text-lg text-slate-900">Filters</h3>
+              <button onClick={() => setMobileFilterOpen(false)} className="p-2 text-slate-400">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <label className="text-xs font-bold text-slate-400 uppercase">Categories</label>
+              <div className="space-y-1">
+                {categoriesList.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      updateParam('category', cat);
+                      setMobileFilterOpen(false);
+                    }}
+                    className={`w-full text-left p-2 text-xs font-bold rounded-lg ${
+                      (category || 'All') === cat ? 'bg-agri-forest text-white' : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={() => setMobileFilterOpen(false)} className="btn-accent w-full text-xs py-3">
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default Products;
-

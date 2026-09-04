@@ -1,16 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  CircleUserRound,
-  Download,
-  LocateFixed,
-  LogOut,
-  Package,
-  Search,
-  Sparkles
-} from 'lucide-react';
+import { Package, Search, Download, Sparkles, X, Clock, CheckCircle2, Truck, AlertCircle, RefreshCw } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import UserSidebar from '../components/UserSidebar';
+import ProductImage from '../components/ProductImage';
+import { OrderCardSkeleton } from '../components/Skeleton';
+import Toast from '../components/Toast';
 
 const timelineSteps = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 const ORDERS_CACHE_KEY = 'agristore_my_orders_cache_v1';
@@ -24,15 +20,22 @@ const statusText = {
   cancelled: 'CANCELLED'
 };
 
+const statusColors = {
+  pending: 'bg-amber-100 text-amber-800 border-amber-200',
+  confirmed: 'bg-blue-100 text-blue-800 border-blue-200',
+  processing: 'bg-purple-100 text-purple-800 border-purple-200',
+  shipped: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  delivered: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  cancelled: 'bg-rose-100 text-rose-800 border-rose-200'
+};
+
 const MyOrders = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [orders, setOrders] = useState([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [toastMessage, setToastMessage] = useState('');
   const [cancelModal, setCancelModal] = useState({ isOpen: false, orderId: null, reason: '' });
-
-  const userName = user?.name?.toUpperCase() || 'USER';
-  const userEmail = user?.email || '';
 
   useEffect(() => {
     const load = async () => {
@@ -46,7 +49,7 @@ const MyOrders = () => {
           }
         }
       } catch {
-        // Ignore invalid cache payloads and fallback to network.
+        // Fallback to API call
       }
 
       try {
@@ -54,6 +57,8 @@ const MyOrders = () => {
         const nextOrders = data.orders || [];
         setOrders(nextOrders);
         localStorage.setItem(ORDERS_CACHE_KEY, JSON.stringify(nextOrders));
+      } catch (err) {
+        console.error('Failed to load orders:', err);
       } finally {
         setLoading(false);
       }
@@ -67,16 +72,17 @@ const MyOrders = () => {
 
   const confirmCancelOrder = async () => {
     if (!cancelModal.reason.trim()) {
-      alert("A reason is required to cancel the order.");
+      setToastMessage('Please enter a cancellation reason');
       return;
     }
-    
+
     try {
       await api.patch(`/orders/${cancelModal.orderId}/cancel`, { reason: cancelModal.reason.trim() });
-      setOrders(prev => prev.map(o => o._id === cancelModal.orderId ? { ...o, status: 'cancelled' } : o));
+      setOrders((prev) => prev.map((o) => (o._id === cancelModal.orderId ? { ...o, status: 'cancelled' } : o)));
+      setToastMessage('Order cancelled successfully');
       setCancelModal({ isOpen: false, orderId: null, reason: '' });
     } catch (err) {
-      alert('Failed to cancel order: ' + (err.response?.data?.message || err.message));
+      setToastMessage('Failed to cancel order: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -111,7 +117,7 @@ const MyOrders = () => {
 
       setTimeout(() => URL.revokeObjectURL(url), 30000);
     } catch {
-      alert('Could not download invoice right now. Please try again.');
+      setToastMessage('Invoice download failed. Please try again.');
     }
   };
 
@@ -123,211 +129,174 @@ const MyOrders = () => {
 
   const formatDate = (value) => {
     if (!value) return '-';
-    return new Date(value).toLocaleDateString('en-IN');
+    return new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   return (
-    <div className="page-container py-8">
-      <div className="grid lg:grid-cols-[320px_1fr] gap-6 items-start">
-        <aside className="space-y-6 lg:sticky lg:top-24">
-          <div className="card p-6">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-slate-100 border border-slate-200 grid place-items-center text-slate-500">
-                <CircleUserRound size={24} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[2rem] font-black leading-none text-slate-800 truncate">{userName}</p>
-                <p className="text-sm text-slate-400 mt-2 truncate">{userEmail}</p>
-              </div>
+    <div className="page-container py-8 space-y-8">
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
+
+      <div className="grid lg:grid-cols-12 gap-8 items-start">
+        {/* Sidebar (4 Cols) */}
+        <div className="lg:col-span-4">
+          <UserSidebar />
+        </div>
+
+        {/* Orders Content (8 Cols) */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Header & Search */}
+          <div className="card p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Orders</h1>
+              <p className="text-xs text-slate-500 font-medium">Track purchases and view invoices</p>
+            </div>
+
+            <div className="relative w-full sm:w-64">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search order ID or product..."
+                className="input-field py-2 pl-9 text-xs"
+              />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
           </div>
 
-          <div className="card p-6">
-            <p className="text-xs tracking-[0.2em] font-extrabold text-slate-300 mb-5">MENU</p>
-            <div className="space-y-2">
-              <Link to="/profile" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-500 font-bold hover:bg-slate-50">
-                <span className="h-8 w-8 rounded-xl bg-slate-100 border border-slate-200 grid place-items-center"><CircleUserRound size={16} /></span>
-                MY PROFILE
-              </Link>
-              <div className="flex items-center gap-3 px-4 py-4 rounded-2xl bg-slate-900 text-white font-black shadow-lg">
-                <span className="h-8 w-8 rounded-xl bg-slate-800 grid place-items-center text-emerald-400"><Package size={16} /></span>
-                MY ORDERS
-              </div>
-            </div>
-
-            <p className="text-xs tracking-[0.2em] font-extrabold text-slate-300 mt-8 mb-5">SETTINGS</p>
-            <div className="space-y-2">
-              <Link to="/addresses" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-500 font-bold hover:bg-slate-50">
-                <span className="h-8 w-8 rounded-xl bg-slate-100 border border-slate-200 grid place-items-center"><LocateFixed size={16} /></span>
-                SAVED ADDRESSES
-              </Link>
-              <button
-                onClick={logout}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-rose-500 font-black hover:bg-rose-50 text-left"
-              >
-                <span className="h-8 w-8 rounded-xl bg-rose-100 border border-rose-200 grid place-items-center"><LogOut size={16} /></span>
-                LOGOUT
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        <section className="space-y-5">
-          <div className="card p-2 flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-slate-100 border border-slate-200 grid place-items-center text-slate-400">
-              <Search size={20} />
-            </div>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search your orders or specific products..."
-              className="flex-1 bg-transparent outline-none text-slate-500 placeholder:text-slate-300 font-semibold"
-            />
-            <button className="btn-secondary px-10 py-3 rounded-full text-sm tracking-[0.12em]">SEARCH</button>
-          </div>
-
+          {/* Orders List */}
           {loading ? (
-            <div className="card p-14 text-center text-slate-400 font-bold">Loading orders...</div>
+            <div className="space-y-4">
+              {[1, 2, 3].map((n) => (
+                <OrderCardSkeleton key={n} />
+              ))}
+            </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="card p-14 text-center text-slate-400 font-bold">No orders found.</div>
-          ) : filteredOrders.map((order) => {
-            const firstItem = order.items?.[0];
-            const extraItems = Math.max((order.items?.length || 0) - 1, 0);
-            const statusIndex = getStepIndex(order.status);
+            <div className="card p-12 text-center space-y-4">
+              <Package size={48} className="mx-auto text-slate-300" />
+              <h3 className="text-xl font-black text-slate-900">No Orders Found</h3>
+              <p className="text-xs text-slate-500">You haven't placed any agricultural orders yet.</p>
+              <Link to="/products" className="btn-accent text-xs px-6 py-2.5 inline-flex">
+                Shop Products
+              </Link>
+            </div>
+          ) : (
+            filteredOrders.map((order) => {
+              const firstItem = order.items?.[0];
+              const extraItems = Math.max((order.items?.length || 0) - 1, 0);
+              const statusIndex = getStepIndex(order.status);
+              const badgeStyle = statusColors[order.status] || 'bg-slate-100 text-slate-800';
 
-            return (
-              <div key={order._id} className="card overflow-hidden">
-                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <span className="h-10 w-10 rounded-xl border border-slate-200 bg-slate-50 grid place-items-center text-emerald-500">
-                      <Sparkles size={18} />
-                    </span>
+              return (
+                <div key={order._id} className="card overflow-hidden space-y-4 p-6">
+                  {/* Top Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
                     <div>
-                      <p className="text-xs tracking-[0.12em] font-extrabold text-slate-400">ORDER ID</p>
-                      <p className="font-black text-slate-800">#{order._id.slice(-8).toUpperCase()}</p>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">ORDER ID</span>
+                      <span className="font-black text-slate-900 text-sm">#{order._id.slice(-8).toUpperCase()}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">DATE PLACED</span>
+                      <span className="font-bold text-slate-700 text-xs">{formatDate(order.createdAt)}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">TOTAL AMOUNT</span>
+                      <span className="font-black text-agri-forest text-base">Rs. {order.totalAmount}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-extrabold px-3 py-1 rounded-full border ${badgeStyle}`}>
+                        {statusText[order.status] || order.status}
+                      </span>
+                      <button
+                        onClick={() => downloadInvoice(order._id)}
+                        title="Download Invoice"
+                        className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
+                      >
+                        <Download size={16} />
+                      </button>
                     </div>
                   </div>
 
+                  {/* Order Items Preview */}
                   <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-xs tracking-[0.12em] font-extrabold text-slate-400">TOTAL AMOUNT</p>
-                      <p className="font-black text-[2rem] leading-none text-slate-900">Rs{order.totalAmount}</p>
+                    <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden border border-slate-200 shrink-0">
+                      <ProductImage src={firstItem?.imageUrl} category={firstItem?.category} aspect="aspect-square" />
                     </div>
-                    <button
-                      className="h-10 w-10 rounded-xl border border-slate-200 bg-slate-50 grid place-items-center text-slate-500"
-                      onClick={() => downloadInvoice(order._id)}
-                      title="Download invoice"
-                    >
-                      <Download size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="p-6 grid lg:grid-cols-[1fr_320px] gap-6 items-start">
-                  <div className="flex items-center gap-5">
-                    <div className="h-24 w-24 rounded-3xl bg-slate-100 border border-slate-200" />
-                    <div>
-                      <p className="inline-block rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold tracking-wide text-slate-400">
-                        CATEGORY: GENERAL
-                      </p>
-                      <p className="mt-3 text-[2rem] leading-none font-black text-slate-800">
-                        {firstItem?.name || 'Order Item'}
-                      </p>
-                      <p className="mt-3 text-sm font-extrabold text-slate-400 tracking-[0.08em]">
-                        QTY: {firstItem?.quantity || 0}
-                        <span className="mx-3 text-slate-300">.</span>
-                        PRICE: Rs{firstItem?.price || 0}
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{firstItem?.name || 'Agri Item'}</h4>
+                      <p className="text-xs text-slate-500 font-medium">
+                        Qty: {firstItem?.quantity || 1} • Rs. {firstItem?.price || 0}
                       </p>
                       {extraItems > 0 && (
-                        <p className="text-sm text-slate-400 mt-2">+{extraItems} more item(s)</p>
+                        <p className="text-xs text-agri-green font-bold mt-0.5">+{extraItems} more items in shipment</p>
                       )}
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <span className="h-9 w-9 rounded-xl bg-amber-50 border border-amber-100 text-amber-500 grid place-items-center">
-                        <Package size={16} />
-                      </span>
-                      <div>
-                        <p className="text-amber-500 font-black tracking-[0.08em]">{statusText[order.status] || order.status}</p>
-                        <p className="text-sm text-slate-400">Updated {formatDate(order.updatedAt || order.createdAt)}</p>
+                  {/* Order Progress Timeline */}
+                  {order.status !== 'cancelled' && (
+                    <div className="pt-4 border-t border-slate-100 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                        <span>Placed</span>
+                        <span>Confirmed</span>
+                        <span>Processing</span>
+                        <span>Shipped</span>
+                        <span>Delivered</span>
+                      </div>
+                      <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-agri-green transition-all duration-500"
+                          style={{
+                            width: `${Math.max(10, ((statusIndex + 1) / timelineSteps.length) * 100)}%`
+                          }}
+                        />
                       </div>
                     </div>
+                  )}
 
-                    <div className="mt-6">
-                      <div className="relative h-2 bg-slate-200 rounded-full">
-                        {timelineSteps.map((step, idx) => {
-                          const active = statusIndex >= idx;
-                          const left = `${(idx / (timelineSteps.length - 1)) * 100}%`;
-                          return (
-                            <span
-                              key={step}
-                              className={`absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-2 ${active ? 'bg-emerald-400 border-emerald-400' : 'bg-white border-slate-300'}`}
-                              style={{ left }}
-                            />
-                          );
-                        })}
-                      </div>
-                      <div className="mt-3 flex justify-between text-[10px] font-extrabold tracking-wide text-slate-400">
-                        {timelineSteps.map((step) => <span key={step}>{statusText[step]}</span>)}
-                      </div>
+                  {/* Actions */}
+                  {canCancel(order.status) && (
+                    <div className="pt-2 border-t border-slate-100 flex justify-end">
+                      <button
+                        onClick={() => openCancelModal(order._id)}
+                        className="text-xs font-bold text-rose-600 hover:underline"
+                      >
+                        Cancel Order
+                      </button>
                     </div>
-
-                    {canCancel(order.status) && (
-                      <div className="mt-6 text-right">
-                        <button
-                          className="text-rose-500 font-black tracking-[0.12em] text-sm"
-                          onClick={() => openCancelModal(order._id)}
-                        >
-                          CANCEL ORDER
-                        </button>
-                      </div>
-                    )}
-
-                    {order.status === 'cancelled' && order.refundStatus && order.refundStatus !== 'none' && (
-                      <div className={`mt-6 p-4 rounded-2xl border text-sm ${
-                        order.refundStatus === 'processed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 
-                        order.refundStatus === 'failed' ? 'border-rose-200 bg-rose-50 text-rose-700' :
-                        'border-amber-200 bg-amber-50 text-amber-700'
-                      }`}>
-                        <p className="font-black mb-1 text-xs tracking-[0.08em]">REFUND {order.refundStatus.toUpperCase()}</p>
-                        {order.refundStatus === 'pending' && <p className="font-medium opacity-90">Your refund is being processed by the seller. Once initiated, it typically takes 5-7 business days to reflect in your original payment method.</p>}
-                        {order.refundStatus === 'processed' && <p className="font-medium opacity-90">Your refund has been accepted and processed by our gateway! Please allow 5-7 business days for the money to be credited to your bank account.</p>}
-                        {order.refundStatus === 'failed' && <p className="font-medium opacity-90">We encountered an issue rolling back your payment. Our support team will resolve this manually.</p>}
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
-        </section>
+              );
+            })
+          )}
+        </div>
       </div>
 
+      {/* Cancel Order Modal */}
       {cancelModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-2xl border border-slate-200">
-            <h3 className="text-2xl font-black text-slate-900 mb-2">Cancel Order</h3>
-            <p className="text-slate-500 mb-6 font-medium tracking-wide text-sm">Please let us know why you are cancelling this order.</p>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl border border-slate-200">
+            <h3 className="text-xl font-black text-slate-900">Cancel Order</h3>
+            <p className="text-xs text-slate-500 font-medium">
+              Please provide a reason for cancelling this agricultural order.
+            </p>
             <textarea
-              className="w-full rounded-2xl border border-slate-200 p-4 outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-50 min-h-[120px] text-slate-700 font-medium mb-6 resize-none transition-all transition-colors"
-              placeholder="e.g. I changed my mind, found a better price elsewhere..."
+              className="input-field min-h-[100px] text-xs"
+              placeholder="e.g. Quantity change required, changed planting timeline..."
               value={cancelModal.reason}
-              onChange={(e) => setCancelModal(prev => ({ ...prev, reason: e.target.value }))}
+              onChange={(e) => setCancelModal((prev) => ({ ...prev, reason: e.target.value }))}
             />
-            <div className="flex gap-4 justify-end">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
-                className="px-6 py-3 rounded-2xl font-bold tracking-wide text-slate-500 hover:bg-slate-100 transition-colors"
+                type="button"
                 onClick={() => setCancelModal({ isOpen: false, orderId: null, reason: '' })}
+                className="text-xs font-bold text-slate-500 hover:underline"
               >
                 Keep Order
               </button>
-              <button
-                className="px-6 py-3 rounded-2xl font-black tracking-wide bg-rose-500 text-white hover:bg-rose-600 shadow-xl shadow-rose-200 transition-all active:scale-95"
-                onClick={confirmCancelOrder}
-              >
-                Cancel Order
+              <button type="button" onClick={confirmCancelOrder} className="btn-accent text-xs py-2.5 px-5 bg-rose-600 hover:bg-rose-700">
+                Confirm Cancellation
               </button>
             </div>
           </div>

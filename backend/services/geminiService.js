@@ -4,9 +4,9 @@ const getModel = () => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
   const client = new GoogleGenerativeAI(apiKey);
+  const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   return client.getGenerativeModel(
-    { model: 'gemma-3-4b-it' },
-    { apiVersion: 'v1beta' }
+    { model: modelName }
   );
 };
 
@@ -23,9 +23,9 @@ const extractArray = (text) => {
 };
 
 export const getProductAdvice = async (product, cropType, soilType, season) => {
+  const hasFarmerContext = Boolean(cropType || soilType || season);
   try {
     const model = getModel();
-    const hasFarmerContext = cropType || soilType || season;
     const prompt = `You are an expert agricultural advisor in India.
 Analyze the selected product and provide product-specific properties and practical usage advice.
 

@@ -1,45 +1,77 @@
 import mongoose from 'mongoose';
 
 const returnItemSchema = new mongoose.Schema({
-  productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
-  name: { type: String, trim: true },
-  quantity: { type: Number, min: 1, default: 1 },
-  reason: { type: String, trim: true }
+  productId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    required: true
+  },
+  name: {
+    type: String,
+    required: true
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1
+  },
+  reason: {
+    type: String,
+    default: ''
+  }
 }, { _id: false });
 
 const returnRequestSchema = new mongoose.Schema({
   orderId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Order',
-    required: true
+    required: true,
+    index: true
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true
   },
-  items: [returnItemSchema],
-  reason: { type: String, trim: true },
-  description: { type: String, trim: true },
+  items: {
+    type: [returnItemSchema],
+    default: []
+  },
+  reason: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  description: {
+    type: String,
+    default: ''
+  },
   status: {
     type: String,
-    enum: ['requested', 'approved', 'rejected'],
-    default: 'requested'
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending'
   },
   refundStatus: {
     type: String,
     enum: ['none', 'pending', 'processed', 'failed'],
     default: 'none'
   },
-  adminNote: { type: String, trim: true },
-  refundReference: { type: String, trim: true },
-  requestedAt: { type: Date, default: Date.now },
-  resolvedAt: { type: Date }
+  refundReference: {
+    type: String,
+    default: ''
+  },
+  adminNote: {
+    type: String,
+    default: ''
+  },
+  resolvedAt: {
+    type: Date
+  }
 }, { timestamps: true });
 
-returnRequestSchema.index({ status: 1, createdAt: -1 });
-returnRequestSchema.index({ userId: 1, createdAt: -1 });
-returnRequestSchema.index({ orderId: 1 });
+returnRequestSchema.index({ status: 1, refundStatus: 1, createdAt: -1 });
 
 const ReturnRequest = mongoose.model('ReturnRequest', returnRequestSchema);
+
 export default ReturnRequest;

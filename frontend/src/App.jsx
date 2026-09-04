@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 
+import Home from './pages/Home';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
@@ -15,7 +16,8 @@ import Addresses from './pages/Addresses';
 import Wishlist from './pages/Wishlist';
 import AdminDashboard from './pages/AdminDashboard';
 import Header from './components/Header';
-import NotificationTicker from './components/NotificationTicker';
+import Footer from './components/Footer';
+import AIAssistant from './components/AIAssistant';
 
 import './App.css';
 
@@ -25,8 +27,8 @@ const ProtectedRoute = ({ children, adminOnly, userOnly }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-agri-surface">
+        <div className="w-10 h-10 border-4 border-agri-green border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -45,72 +47,77 @@ const AppLayout = () => {
   const location = useLocation();
   const { isAuthenticated, isAdmin, loading } = useAuth();
   const isAdminRoute = location.pathname.startsWith('/admin');
-  const hideHeader = ['/login', '/register'].includes(location.pathname) || isAdminRoute;
+  const isAuthPage = ['/login', '/register'].includes(location.pathname);
 
   if (!loading && isAuthenticated && isAdmin && !isAdminRoute) {
     return <Navigate to="/admin" replace />;
   }
 
   return (
-    <>
-      {!hideHeader && <Header />}
-      {!hideHeader && <NotificationTicker />}
-      <Routes>
-        {/* Public */}
-        <Route path="/" element={<Navigate to="/products" replace />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/products/:id" element={<ProductDetail />} />
+    <div className="min-h-screen flex flex-col bg-agri-surface">
+      {!isAuthPage && !isAdminRoute && <Header />}
+      
+      <div className="flex-1">
+        <Routes>
+          {/* Public */}
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
 
-        {/* Farmer (authenticated, non-admin) */}
-        <Route path="/cart" element={
-          <ProtectedRoute userOnly>
-            <Cart />
-          </ProtectedRoute>
-        } />
-        <Route path="/checkout" element={
-          <ProtectedRoute userOnly>
-            <Checkout />
-          </ProtectedRoute>
-        } />
-        <Route path="/my-orders" element={
-          <ProtectedRoute userOnly>
-            <MyOrders />
-          </ProtectedRoute>
-        } />
-        <Route path="/profile" element={
-          <ProtectedRoute userOnly>
-            <Profile />
-          </ProtectedRoute>
-        } />
-        <Route path="/settings" element={
-          <ProtectedRoute userOnly>
-            <Settings />
-          </ProtectedRoute>
-        } />
-        <Route path="/addresses" element={
-          <ProtectedRoute userOnly>
-            <Addresses />
-          </ProtectedRoute>
-        } />
-        <Route path="/wishlist" element={
-          <ProtectedRoute userOnly>
-            <Wishlist />
-          </ProtectedRoute>
-        } />
+          {/* Farmer (authenticated, non-admin) */}
+          <Route path="/cart" element={
+            <ProtectedRoute userOnly>
+              <Cart />
+            </ProtectedRoute>
+          } />
+          <Route path="/checkout" element={
+            <ProtectedRoute userOnly>
+              <Checkout />
+            </ProtectedRoute>
+          } />
+          <Route path="/my-orders" element={
+            <ProtectedRoute userOnly>
+              <MyOrders />
+            </ProtectedRoute>
+          } />
+          <Route path="/profile" element={
+            <ProtectedRoute userOnly>
+              <Profile />
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute userOnly>
+              <Settings />
+            </ProtectedRoute>
+          } />
+          <Route path="/addresses" element={
+            <ProtectedRoute userOnly>
+              <Addresses />
+            </ProtectedRoute>
+          } />
+          <Route path="/wishlist" element={
+            <ProtectedRoute userOnly>
+              <Wishlist />
+            </ProtectedRoute>
+          } />
 
-        {/* Admin */}
-        <Route path="/admin" element={
-          <ProtectedRoute adminOnly>
-            <AdminDashboard />
-          </ProtectedRoute>
-        } />
+          {/* Admin */}
+          <Route path="/admin" element={
+            <ProtectedRoute adminOnly>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+
+      {!isAuthPage && !isAdminRoute && <AIAssistant />}
+      {!isAuthPage && !isAdminRoute && <Footer />}
+    </div>
   );
 };
 

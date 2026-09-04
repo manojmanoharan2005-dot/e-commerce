@@ -1,58 +1,87 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Heart, ArrowRight } from 'lucide-react';
 import UserSidebar from '../components/UserSidebar';
 import ProductCard from '../components/ProductCard';
+import { ProductCardSkeleton } from '../components/Skeleton';
+import Toast from '../components/Toast';
 import api from '../utils/api';
-import { useCart } from '../context/CartContext';
 
 const Wishlist = () => {
-  const { addToCart } = useCart();
   const [wishlist, setWishlist] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [toastMessage, setToastMessage] = useState('');
 
   const load = async () => {
-    const { data } = await api.get('/wishlist');
-    setWishlist(data.wishlist || []);
+    setLoading(true);
+    try {
+      const { data } = await api.get('/wishlist');
+      setWishlist(data.wishlist || []);
+    } catch (err) {
+      console.error('Failed to load wishlist:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, []);
-
-  const remove = async (id) => {
-    await api.delete(`/wishlist/${id}`);
+  useEffect(() => {
     load();
-  };
+  }, []);
 
   return (
-    <div className="page-container py-8 grid lg:grid-cols-[320px_1fr] gap-6 items-start">
-      <UserSidebar />
+    <div className="page-container py-8 space-y-8">
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage('')} />}
 
-      <div className="space-y-5">
-        <div className="card p-8 md:p-10">
-          <p className="text-xs tracking-[0.18em] font-extrabold text-slate-400">ACCOUNT</p>
-          <h1 className="text-[3rem] font-black leading-none text-slate-800 mt-2">Wishlist</h1>
+      <div className="grid lg:grid-cols-12 gap-8 items-start">
+        {/* Sidebar (4 Cols) */}
+        <div className="lg:col-span-4">
+          <UserSidebar />
         </div>
 
-        {wishlist.length === 0 ? (
-          <div className="card p-10 text-center text-slate-400 font-bold">Your wishlist is empty.</div>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {wishlist.map(product => (
-                <ProductCard key={product._id} product={product} onWishlistChange={load} />
-              ))}
+        {/* Wishlist Main View (8 Cols) */}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="card p-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">My Wishlist</h1>
+              <p className="text-xs text-slate-500 font-medium">{wishlist.length} saved products</p>
             </div>
-
-            <div className="space-y-2">
-              {wishlist.map(item => (
-                <div key={`action-${item._id}`} className="card p-4 flex items-center justify-between gap-3">
-                  <p className="text-sm font-bold text-slate-700">{item.name}</p>
-                  <div className="flex gap-2">
-                    <button className="btn-secondary px-4 py-2 text-xs font-black tracking-wide" onClick={() => addToCart(item, 1)}>ADD TO CART</button>
-                    <button className="text-red-600 text-xs font-black tracking-wide px-3" onClick={() => remove(item._id)}>REMOVE</button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Link to="/products" className="text-xs font-extrabold text-agri-green hover:underline">
+              Explore Products →
+            </Link>
           </div>
-        )}
+
+          {loading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {[1, 2, 3].map((n) => (
+                <ProductCardSkeleton key={n} />
+              ))}
+            </div>
+          ) : wishlist.length === 0 ? (
+            <div className="card p-12 text-center space-y-4">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full grid place-items-center mx-auto">
+                <Heart size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900">Your Wishlist is Empty</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Explore our catalog and save your favorite seeds, fertilizers, and tools for future purchases.
+              </p>
+              <Link to="/products" className="btn-accent text-xs px-6 py-2.5 inline-flex items-center gap-2">
+                Explore Marketplace <ArrowRight size={16} />
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {wishlist.map((product) => (
+                <ProductCard
+                  key={product._id}
+                  product={{ ...product, isWishlisted: true }}
+                  onWishlistChange={load}
+                  onAddToCartToast={(msg) => setToastMessage(msg)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

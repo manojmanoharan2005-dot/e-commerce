@@ -28,8 +28,8 @@ export const adminOnly = (req, res, next) => {
 };
 
 export const farmerOnly = (req, res, next) => {
-  if (req.user?.role !== 'farmer') {
-    return res.status(403).json({ message: 'Forbidden: Farmer access only' });
+  if (req.user?.role !== 'farmer' && req.user?.role !== 'admin') {
+    return res.status(403).json({ message: 'Forbidden: Access denied' });
   }
   next();
 };

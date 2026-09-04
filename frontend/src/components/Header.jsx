@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sprout, Search, ShoppingCart, User, LogOut, Shield } from 'lucide-react';
+import { Sprout, Search, ShoppingCart, User, Heart, LogOut, Shield, Menu, X, ChevronRight, Package, Settings, MapPin } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import api from '../utils/api';
@@ -10,13 +10,16 @@ const Header = () => {
   const location = useLocation();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const { getCartCount } = useCart();
+  
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [shrink, setShrink] = useState(false);
 
-  const cartCount = useMemo(() => getCartCount(), [getCartCount, results]);
-  const displayName = user?.name?.toUpperCase() || 'ACCOUNT';
+  const cartCount = useMemo(() => getCartCount(), [getCartCount]);
+  const displayName = user?.name || 'Account';
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   useEffect(() => {
@@ -25,6 +28,14 @@ const Header = () => {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Close mobile drawer and dropdowns on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setShowUserDropdown(false);
+    setShowSearchDropdown(false);
+  }, [location.pathname]);
+
+  // Live search debounced
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -33,12 +44,12 @@ const Header = () => {
     const timer = setTimeout(async () => {
       try {
         const { data } = await api.get('/products', { params: { search: query } });
-        setResults(data.products?.slice(0, 6) || []);
-        setShowDropdown(true);
+        setResults(data.products?.slice(0, 5) || []);
+        setShowSearchDropdown(true);
       } catch {
         setResults([]);
       }
-    }, 300);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [query]);
@@ -46,113 +57,288 @@ const Header = () => {
   const onSearchSubmit = (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-
     navigate(`/products?search=${encodeURIComponent(query.trim())}`);
-    setShowDropdown(false);
+    setShowSearchDropdown(false);
   };
 
   return (
-    <header className={`sticky top-0 z-30 backdrop-blur-sm border-b border-slate-200/80 transition-all ${shrink ? 'py-2' : 'py-3'} bg-white/95`}>
-      <div className="page-container">
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4 lg:gap-6">
-          <Link to={isAdmin ? '/admin' : '/'} className="flex items-center gap-3 shrink-0">
-            <span className="h-11 w-11 rounded-2xl bg-[#151515] text-emerald-500 grid place-items-center shadow-sm">
-              <Sprout size={21} />
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm transition-all duration-200">
+      {/* Top Banner Ticker */}
+      <div className="bg-[#09251D] text-emerald-300 py-1.5 px-4 text-xs font-semibold overflow-hidden border-b border-emerald-950">
+        <div className="page-container flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-white">Direct-from-Manufacturer Farm Inputs • Doorstep Delivery Pan India</span>
+          </div>
+          <div className="hidden md:flex items-center gap-4 text-[11px] text-slate-300">
+            <span>Toll Free: 1800-AGRI-STORE</span>
+            <span>|</span>
+            <Link to="/products?category=Seeds" className="hover:text-emerald-400 transition-colors">Hybrid Seeds</Link>
+            <Link to="/products?category=Organic" className="hover:text-emerald-400 transition-colors">Bio Organic</Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Header Container */}
+      <div className="page-container py-3">
+        <div className="flex items-center justify-between gap-4">
+          {/* Logo & Brand */}
+          <Link to={isAdmin ? '/admin' : '/'} className="flex items-center gap-3 group shrink-0">
+            <span className="h-11 w-11 rounded-2xl bg-[#0F382C] text-emerald-400 grid place-items-center shadow-md group-hover:bg-[#09251D] transition-colors">
+              <Sprout size={24} />
             </span>
-            <div className="leading-none">
-              <p className="font-black text-[2rem] tracking-tight text-slate-800">AgriStore</p>
-              <p className="text-[11px] font-bold tracking-[0.16em] text-slate-400 mt-1">PREMIUM QUALITY</p>
+            <div className="leading-tight">
+              <span className="font-black text-2xl tracking-tight text-slate-900 group-hover:text-agri-forest transition-colors block">
+                AgriStore
+              </span>
+              <span className="text-[10px] font-extrabold tracking-[0.22em] text-agri-green block">
+                PREMIUM QUALITY
+              </span>
             </div>
           </Link>
 
+          {/* Desktop Search Bar */}
           {!isAdminRoute && (
-            <form onSubmit={onSearchSubmit} className="relative w-full max-w-3xl justify-self-center">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setShowDropdown(true)}
-                placeholder="Search premium products..."
-                className={`w-full pl-7 py-4 rounded-2xl border border-slate-200 bg-slate-100/80 text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-emerald-200 pr-14`}
-              />
+            <div className="hidden md:block flex-1 max-w-2xl relative">
+              <form onSubmit={onSearchSubmit} className="relative">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={() => setShowSearchDropdown(true)}
+                  placeholder="Search seeds, fertilizers, pesticides, equipment..."
+                  className="w-full pl-11 pr-14 py-3 rounded-2xl border border-slate-200 bg-slate-50 text-slate-800 placeholder:text-slate-400 text-sm font-medium outline-none focus:ring-2 focus:ring-agri-green/30 focus:border-agri-green focus:bg-white transition-all shadow-sm"
+                />
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <button
+                  type="submit"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-2 bg-agri-forest hover:bg-agri-forest-dark text-white rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5"
+                >
+                  Search
+                </button>
+              </form>
 
-              <button
-                type="submit"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-11 w-11 rounded-xl bg-[#151515] text-white grid place-items-center"
-              >
-                <Search size={18} />
-              </button>
-
-              {showDropdown && results.length > 0 && (
-                <div className="absolute top-[58px] left-0 right-0 bg-white border border-slate-200 rounded-2xl shadow-lg p-2 z-20">
+              {/* Live Search Results Dropdown */}
+              {showSearchDropdown && results.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 p-2">
+                  <p className="px-3 py-1.5 text-[11px] font-bold text-slate-400 tracking-wider uppercase">Products</p>
                   {results.map((item) => (
                     <button
                       key={item._id}
                       type="button"
                       onClick={() => {
                         navigate(`/products/${item._id}`);
-                        setShowDropdown(false);
+                        setShowSearchDropdown(false);
                         setQuery('');
                       }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50"
+                      className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 flex items-center justify-between gap-3 transition-colors"
                     >
-                      <p className="text-sm font-semibold text-slate-800">{item.name}</p>
-                      <p className="text-xs text-slate-500">Rs. {item.price}</p>
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 grid place-items-center text-agri-forest text-xs font-bold shrink-0">
+                          {item.category?.slice(0, 2)}
+                        </span>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800 line-clamp-1">{item.name}</p>
+                          <p className="text-[11px] text-slate-400">{item.category}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-extrabold text-agri-forest shrink-0">Rs. {item.price}</span>
                     </button>
                   ))}
+                  <button
+                    onClick={onSearchSubmit}
+                    className="w-full text-center py-2 text-xs font-bold text-agri-green hover:underline border-t border-slate-100 mt-1"
+                  >
+                    View all matching results →
+                  </button>
                 </div>
               )}
-            </form>
+            </div>
           )}
 
-          <div className="flex items-center gap-2 justify-self-end">
-            {!isAdmin && (
-              <Link
-                to="/cart"
-                className="relative p-2.5 rounded-2xl border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 transition-colors"
-              >
-                <ShoppingCart size={21} />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold">
-                    {cartCount}
-                  </span>
+          {/* Right Action Icons */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {!isAdminRoute && (
+              <>
+                {/* Wishlist Link */}
+                <Link
+                  to="/wishlist"
+                  title="Wishlist"
+                  className="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-agri-forest transition-colors relative"
+                >
+                  <Heart size={20} />
+                </Link>
+
+                {/* Cart Link */}
+                {!isAdmin && (
+                  <Link
+                    to="/cart"
+                    title="Shopping Cart"
+                    className="p-2.5 rounded-xl bg-agri-forest hover:bg-agri-forest-dark text-white transition-all shadow-sm relative flex items-center gap-2"
+                  >
+                    <ShoppingCart size={20} />
+                    <span className="hidden sm:inline font-bold text-xs">Cart</span>
+                    {cartCount > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-agri-gold text-white text-[10px] font-black rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center border-2 border-white shadow-sm">
+                        {cartCount}
+                      </span>
+                    )}
+                  </Link>
                 )}
-              </Link>
+              </>
             )}
 
+            {/* Authenticated User Menu / Auth Buttons */}
             {isAuthenticated ? (
-              <>
-                {isAdmin ? (
-                  <Link
-                    to="/admin"
-                    className="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 text-sm rounded-xl inline-flex items-center gap-2 font-semibold transition-colors"
-                  >
-                    <Shield size={14} /> Admin
-                  </Link>
-                ) : (
-                  <Link
-                    to="/profile"
-                    className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors text-slate-700 font-bold"
-                  >
-                    <span className="h-8 w-8 rounded-xl border border-slate-200 grid place-items-center"><User size={16} /></span>
-                    <span className="max-w-[170px] truncate">{displayName}</span>
-                  </Link>
-                )}
-                <button
-                  onClick={logout}
-                  className="p-2.5 rounded-xl border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
+              isAdmin ? (
+                <Link
+                  to="/admin"
+                  className="bg-slate-900 hover:bg-black text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-colors"
                 >
-                  <LogOut size={18} />
-                </button>
-              </>
+                  <Shield size={16} className="text-emerald-400" /> Admin Console
+                </Link>
+              ) : (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className="flex items-center gap-2 p-1.5 pl-3 pr-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors text-slate-800"
+                  >
+                    <span className="w-7 h-7 rounded-lg bg-agri-green text-white font-black text-xs grid place-items-center uppercase">
+                      {displayName.charAt(0)}
+                    </span>
+                    <span className="hidden sm:inline text-xs font-bold max-w-[100px] truncate">{displayName}</span>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showUserDropdown && (
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-slide-up">
+                      <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                        <p className="text-xs font-bold text-slate-800">{user?.name}</p>
+                        <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
+                      </div>
+                      <Link to="/profile" className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
+                        <User size={15} className="text-agri-green" /> Profile
+                      </Link>
+                      <Link to="/my-orders" className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
+                        <Package size={15} className="text-agri-green" /> My Orders
+                      </Link>
+                      <Link to="/addresses" className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
+                        <MapPin size={15} className="text-agri-green" /> Saved Addresses
+                      </Link>
+                      <Link to="/settings" className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
+                        <Settings size={15} className="text-agri-green" /> Settings
+                      </Link>
+                      <button
+                        onClick={logout}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 rounded-xl hover:bg-rose-50 transition-colors mt-1 border-t border-slate-100"
+                      >
+                        <LogOut size={15} /> Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
             ) : (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-xs font-bold hover:bg-slate-50 transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-4 py-2.5 rounded-xl bg-agri-green hover:bg-agri-green-hover text-white text-xs font-bold shadow-sm transition-colors"
+                >
+                  Register
+                </Link>
+              </div>
+            )}
+
+            {/* Mobile Menu Hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Secondary Category Navigation Bar */}
+        {!isAdminRoute && (
+          <nav className="hidden md:flex items-center gap-8 pt-3 mt-2 border-t border-slate-100 text-xs font-bold text-slate-600">
+            <Link to="/" className={`hover:text-agri-forest transition-colors ${location.pathname === '/' ? 'text-agri-forest font-extrabold border-b-2 border-agri-green pb-1' : ''}`}>
+              Home
+            </Link>
+            <Link to="/products" className={`hover:text-agri-forest transition-colors ${location.pathname === '/products' && !location.search ? 'text-agri-forest font-extrabold border-b-2 border-agri-green pb-1' : ''}`}>
+              All Products
+            </Link>
+            <Link to="/products?category=Seeds" className="hover:text-agri-forest transition-colors">
+              Seeds & Saplings
+            </Link>
+            <Link to="/products?category=Fertilizer" className="hover:text-agri-forest transition-colors">
+              Fertilizers
+            </Link>
+            <Link to="/products?category=Organic" className="hover:text-agri-forest transition-colors">
+              Bio Organic
+            </Link>
+            <Link to="/products?category=Pesticide" className="hover:text-agri-forest transition-colors">
+              Crop Protection
+            </Link>
+            <Link to="/products?category=Equipment" className="hover:text-agri-forest transition-colors">
+              Tools & Machinery
+            </Link>
+          </nav>
+        )}
+      </div>
+
+      {/* Mobile Drawer Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white p-4 space-y-4 shadow-xl animate-fade-in">
+          {/* Mobile Search */}
+          <form onSubmit={onSearchSubmit} className="relative">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search products..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm font-medium"
+            />
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          </form>
+
+          {/* Navigation Links */}
+          <div className="space-y-1 font-bold text-sm text-slate-800">
+            <Link to="/" className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50">
+              Home <ChevronRight size={16} className="text-slate-400" />
+            </Link>
+            <Link to="/products" className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50">
+              Shop Marketplace <ChevronRight size={16} className="text-slate-400" />
+            </Link>
+            <Link to="/wishlist" className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50">
+              My Wishlist <ChevronRight size={16} className="text-slate-400" />
+            </Link>
+            {isAuthenticated && (
               <>
-                <Link to="/login" className="bg-white border border-slate-200 text-slate-800 text-sm font-semibold px-4 py-2.5 rounded-xl">Login</Link>
-                <Link to="/register" className="bg-slate-800 text-white text-sm px-4 py-2.5 rounded-xl font-bold">Register</Link>
+                <Link to="/my-orders" className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50">
+                  My Orders <ChevronRight size={16} className="text-slate-400" />
+                </Link>
+                <Link to="/profile" className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50">
+                  My Account <ChevronRight size={16} className="text-slate-400" />
+                </Link>
               </>
             )}
           </div>
+
+          {!isAuthenticated && (
+            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+              <Link to="/login" className="btn-secondary text-center text-xs py-2.5">Login</Link>
+              <Link to="/register" className="btn-accent text-center text-xs py-2.5">Register</Link>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </header>
   );
 };

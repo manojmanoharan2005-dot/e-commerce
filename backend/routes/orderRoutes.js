@@ -15,7 +15,7 @@ const router = express.Router();
 // Static routes before /:id
 router.get('/my-orders', protect, getMyOrders);
 router.get('/', protect, adminOnly, getAllOrders);
-router.post('/', protect, farmerOnly, createOrder);
+router.post('/', protect, createOrder);
 
 // Dynamic routes
 router.get('/:id/invoice', protect, getOrderInvoice);
