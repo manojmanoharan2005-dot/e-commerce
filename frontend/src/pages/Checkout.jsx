@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { CheckCircle2, Circle, CreditCard, Mail, MapPin, ShieldCheck, Truck, ArrowRight, Lock, Check, Plus, AlertCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../utils/api';
 import { useCart } from '../context/CartContext';
+import ProductImage from '../components/ProductImage';
 import { calculateCartTotals, formatCurrency, getItemQuantity, getItemUnitPrice } from '../utils/cartUtils';
 
 const loadRazorpay = () => new Promise((resolve) => {
@@ -24,6 +25,7 @@ const Checkout = () => {
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [placing, setPlacing] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [error, setError] = useState('');
   const [activeStep, setActiveStep] = useState(1);
@@ -155,13 +157,13 @@ const Checkout = () => {
   };
 
   const placeCodOrder = async () => {
-    await api.post('/orders', {
+    const { data } = await api.post('/orders', {
       items: cart.map((item) => ({ productId: item._id, quantity: getItemQuantity(item) })),
       shippingAddress: shippingPayload,
       paymentMethod: 'COD'
     });
     clearCart();
-    navigate('/my-orders');
+    navigate('/order-success', { state: { order: data.order } });
   };
 
   const placeOnlineOrder = async () => {
@@ -187,8 +189,8 @@ const Checkout = () => {
           order_id: orderData.orderId,
           handler: async (response) => {
             try {
-              setPlacing(true);
-              await api.post('/payments/verify', {
+              setVerifyingPayment(true);
+              const { data: verifyRes } = await api.post('/payments/verify', {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
@@ -196,11 +198,20 @@ const Checkout = () => {
                 shippingAddress: shippingPayload,
                 notes: 'Paid online via Razorpay Test Mode'
               });
+
               clearCart();
-              navigate('/my-orders');
+              // Navigate to Order Success page ONLY after verified backend response
+              navigate('/order-success', {
+                state: {
+                  order: verifyRes.order,
+                  paymentId: response.razorpay_payment_id,
+                  orderId: response.razorpay_order_id
+                }
+              });
             } catch (verifyErr) {
               setError(verifyErr.response?.data?.message || 'Razorpay payment verification failed');
             } finally {
+              setVerifyingPayment(false);
               setPlacing(false);
             }
           },
@@ -215,6 +226,7 @@ const Checkout = () => {
           modal: {
             ondismiss: () => {
               setPlacing(false);
+              setError('Payment cancelled. Your order has not been placed.');
             }
           }
         };
@@ -222,7 +234,9 @@ const Checkout = () => {
         const rzp = new window.Razorpay(options);
         rzp.open();
       } else {
-        await api.post('/payments/verify', {
+        // Safe direct verification fallback
+        setVerifyingPayment(true);
+        const { data: verifyRes } = await api.post('/payments/verify', {
           razorpay_order_id: orderData.orderId || `order_test_${Date.now()}`,
           razorpay_payment_id: `pay_test_${Date.now()}`,
           razorpay_signature: 'test_signature_approved',
@@ -231,11 +245,13 @@ const Checkout = () => {
           notes: 'Paid online via Razorpay Test Mode'
         });
         clearCart();
-        navigate('/my-orders');
+        setVerifyingPayment(false);
+        navigate('/order-success', { state: { order: verifyRes.order } });
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Payment initiation failed');
       setPlacing(false);
+      setVerifyingPayment(false);
     }
   };
 
@@ -261,7 +277,6 @@ const Checkout = () => {
       else await placeOnlineOrder();
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to place order. Please try again.');
-    } finally {
       setPlacing(false);
     }
   };
@@ -302,6 +317,17 @@ const Checkout = () => {
 
   return (
     <div className="page-container py-8 space-y-8">
+      {/* Payment Verification Overlay Loader */}
+      {verifyingPayment && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex flex-col items-center justify-center p-4 text-white text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin mb-4" />
+          <h3 className="text-xl font-black">Verifying Payment Securely...</h3>
+          <p className="text-xs text-slate-300 mt-1 max-w-sm">
+            Payment received by Razorpay. Confirming signature with AgriStore backend server...
+          </p>
+        </div>
+      )}
+
       {/* Checkout Progress Stepper */}
       <div className="bg-white card p-4 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between max-w-3xl mx-auto">
@@ -327,7 +353,7 @@ const Checkout = () => {
               {completedSteps[2] ? <Check size={16} /> : '2'}
             </div>
             <span className={`text-xs font-bold ${activeStep === 2 ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}>
-              Order Review
+              Review
             </span>
           </div>
 
@@ -347,76 +373,39 @@ const Checkout = () => {
         </div>
       </div>
 
-      {/* Mobile Collapsible Summary Banner */}
-      <div className="lg:hidden card overflow-hidden border-emerald-200">
-        <button
-          type="button"
-          onClick={() => setMobileSummaryOpen(!mobileSummaryOpen)}
-          className="w-full p-4 bg-slate-50 flex items-center justify-between font-bold text-xs text-slate-900"
-        >
-          <div className="flex items-center gap-2">
-            <span>ORDER SUMMARY</span>
-            <span className="text-agri-forest font-black">{formatCurrency(cartTotals.finalTotal)}</span>
-          </div>
-          {mobileSummaryOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-        </button>
-
-        {mobileSummaryOpen && (
-          <div className="p-4 space-y-3 border-t border-slate-200 bg-white">
-            {cart.map((item) => {
-              const uPrice = getItemUnitPrice(item);
-              const qty = getItemQuantity(item);
-              return (
-                <div key={item._id} className="flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 border">
-                      <ProductImage src={item.imageUrl} category={item.category} aspect="aspect-square" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-900 truncate">{item.name}</p>
-                      <p className="text-[11px] text-slate-500">{qty} × {formatCurrency(uPrice)}</p>
-                    </div>
-                  </div>
-                  <span className="font-extrabold text-slate-900 shrink-0">{formatCurrency(uPrice * qty)}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
       {error && (
-        <div className="p-4 bg-rose-50 border-l-4 border-rose-500 text-rose-800 rounded-xl flex items-center gap-3 text-xs font-bold">
-          <AlertCircle size={18} className="shrink-0 text-rose-500" />
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-700 flex items-center justify-between">
           <span>{error}</span>
+          <button onClick={() => setError('')} className="p-1 hover:bg-rose-100 rounded-lg">
+            <X size={16} />
+          </button>
         </div>
       )}
 
-      {/* Main Checkout Layout */}
+      {/* Main Grid */}
       <div className="grid lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Flow & Forms (8 Cols) */}
+        {/* Left Column: Form Steps (8 Cols) */}
         <div className="lg:col-span-8 space-y-6">
-          {/* STEP 1: DELIVERY ADDRESS */}
-          <section className={`card p-6 space-y-4 transition-all ${activeStep === 1 ? 'ring-2 ring-agri-green/30 border-agri-green' : ''}`}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <MapPin size={22} className="text-agri-green" />
-                <div>
-                  <h2 className="text-lg font-black text-slate-900">1. Delivery Address</h2>
-                  <p className="text-xs text-slate-500">Select address for dispatch</p>
-                </div>
-              </div>
-              {activeStep !== 1 && (
-                <button onClick={() => setActiveStep(1)} className="text-xs font-extrabold text-agri-green hover:underline">
-                  Change Address
+          {/* STEP 1: Delivery Address */}
+          <div className={`card p-6 space-y-4 transition-all ${activeStep === 1 ? 'ring-2 ring-agri-green/30' : ''}`}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                <MapPin size={18} className="text-agri-green" /> 1. Delivery Address
+              </h2>
+              {selectedAddressId && activeStep !== 1 && (
+                <button
+                  onClick={() => setActiveStep(1)}
+                  className="text-xs font-bold text-agri-green hover:underline"
+                >
+                  Change
                 </button>
               )}
             </div>
 
-            {/* Address Selection Grid */}
-            <div className="space-y-3">
+            {/* Saved Addresses List */}
+            <div className="grid sm:grid-cols-2 gap-3">
               {addresses.map((addr) => {
-                const active = selectedAddressId === addr._id;
+                const isSelected = addr._id === selectedAddressId;
                 return (
                   <div
                     key={addr._id}
@@ -424,313 +413,217 @@ const Checkout = () => {
                       setSelectedAddressId(addr._id);
                       setCompletedSteps((prev) => ({ ...prev, 1: true }));
                     }}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
-                      active
-                        ? 'border-agri-green bg-emerald-50/50 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-emerald-50/60 border-agri-green shadow-xs'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="selected_address"
-                      checked={active}
-                      onChange={() => {}}
-                      className="mt-1 accent-agri-green"
-                    />
-                    <div className="space-y-1 flex-1 text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-slate-900 text-sm">{addr.name}</span>
-                        <span className="bg-slate-200 text-slate-700 text-[10px] font-extrabold px-2 py-0.5 rounded">
-                          {addr.type || 'Home'}
-                        </span>
-                        {addr.isDefault && (
-                          <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded">
-                            Default
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-slate-600 font-medium leading-relaxed">
-                        {addr.locality}, {addr.address}, {addr.city}, {addr.state} - <strong>{addr.pincode}</strong>
-                      </p>
-                      <p className="text-slate-500 font-bold">Phone: {addr.phone}</p>
+                    <div className="flex items-start justify-between">
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                        {addr.type || 'Home'}
+                      </span>
+                      {isSelected && <CheckCircle2 size={18} className="text-agri-green" />}
                     </div>
+                    <p className="font-bold text-slate-900 text-xs mt-2">{addr.name}</p>
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1">
+                      {addr.locality}, {addr.address}, {addr.city}, {addr.state} - {addr.pincode}
+                    </p>
+                    <p className="text-[11px] text-slate-700 font-semibold mt-2">Phone: {addr.phone}</p>
                   </div>
                 );
               })}
             </div>
 
-            {/* Add Address Form Modal */}
-            <div className="pt-2">
-              {!showAddressForm ? (
-                <button
-                  type="button"
-                  onClick={() => setShowAddressForm(true)}
-                  className="btn-secondary text-xs py-2.5 px-4 w-full flex items-center justify-center gap-2"
-                >
-                  <Plus size={16} /> Add New Shipping Address
-                </button>
-              ) : (
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                  <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">New Address Details</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                    <input
-                      placeholder="Full Name *"
-                      value={addressForm.name}
-                      onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
-                      className="input-field"
-                    />
-                    <input
-                      placeholder="Mobile Phone Number *"
-                      value={addressForm.phone}
-                      onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-                      className="input-field"
-                    />
-                    <input
-                      placeholder="Pincode *"
-                      value={addressForm.pincode}
-                      onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })}
-                      className="input-field"
-                    />
-                    <input
-                      placeholder="Locality / Landmark *"
-                      value={addressForm.locality}
-                      onChange={(e) => setAddressForm({ ...addressForm, locality: e.target.value })}
-                      className="input-field"
-                    />
-                    <input
-                      placeholder="Street Address *"
-                      value={addressForm.address}
-                      onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
-                      className="input-field sm:col-span-2"
-                    />
-                    <input
-                      placeholder="City / District *"
-                      value={addressForm.city}
-                      onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                      className="input-field"
-                    />
-                    <input
-                      placeholder="State *"
-                      value={addressForm.state}
-                      onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                      className="input-field"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={addAddress}
-                      disabled={savingAddress}
-                      className="btn-accent text-xs py-2.5 px-6"
-                    >
-                      {savingAddress ? 'Saving Address...' : 'Save & Use Address'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddressForm(false)}
-                      className="text-xs text-slate-500 hover:underline font-bold"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {activeStep === 1 && (
+            {/* Add New Address Toggle */}
+            <div>
               <button
                 type="button"
-                onClick={() => {
-                  if (!selectedAddressId) {
-                    setError('Please select an address');
-                    return;
-                  }
-                  setError('');
-                  setCompletedSteps((prev) => ({ ...prev, 1: true }));
-                  setActiveStep(2);
-                }}
-                className="btn-primary w-full text-xs py-3 mt-4"
+                onClick={() => setShowAddressForm(!showAddressForm)}
+                className="btn-secondary text-xs py-2.5 px-4 flex items-center gap-2"
               >
-                Proceed to Order Review →
+                <Plus size={16} /> {showAddressForm ? 'Cancel New Address' : 'Add New Address'}
               </button>
-            )}
-          </section>
-
-          {/* STEP 2: ORDER REVIEW */}
-          <section className={`card p-6 space-y-4 transition-all ${activeStep === 2 ? 'ring-2 ring-agri-green/30 border-agri-green' : ''}`}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <Truck size={22} className="text-agri-green" />
-                <div>
-                  <h2 className="text-lg font-black text-slate-900">2. Order Review ({cartTotals.totalQuantity} items)</h2>
-                  <p className="text-xs text-slate-500">Review products before payment</p>
-                </div>
-              </div>
-              {activeStep !== 2 && (
-                <button onClick={() => setActiveStep(2)} className="text-xs font-extrabold text-agri-green hover:underline">
-                  Review Items
-                </button>
-              )}
             </div>
 
-            {activeStep === 2 && (
-              <div className="space-y-3">
-                {cart.map((item) => {
-                  const uPrice = getItemUnitPrice(item);
-                  const qty = getItemQuantity(item);
-                  const itemSubtotal = uPrice * qty;
-
-                  return (
-                    <div key={item._id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-4 text-xs">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-14 h-14 rounded-lg bg-white overflow-hidden border border-slate-200 shrink-0">
-                          <ProductImage src={item.imageUrl} category={item.category} aspect="aspect-square" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-900 line-clamp-1">{item.name}</p>
-                          <p className="text-slate-500 mt-0.5">
-                            Quantity: <span className="font-bold text-slate-800">{qty}</span> × {formatCurrency(uPrice)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="font-black text-agri-forest text-sm block">{formatCurrency(itemSubtotal)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-
+            {/* Address Form */}
+            {showAddressForm && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 pt-4">
+                <h3 className="font-bold text-xs text-slate-800">Add New Shipping Address</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Full Name *"
+                    value={addressForm.name}
+                    onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
+                    className="input-field py-2 text-xs"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Mobile Number *"
+                    value={addressForm.phone}
+                    onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+                    className="input-field py-2 text-xs"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Pincode *"
+                    value={addressForm.pincode}
+                    onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })}
+                    className="input-field py-2 text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Locality / Area *"
+                    value={addressForm.locality}
+                    onChange={(e) => setAddressForm({ ...addressForm, locality: e.target.value })}
+                    className="input-field py-2 text-xs"
+                  />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Street Address / House No *"
+                  value={addressForm.address}
+                  onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
+                  className="input-field py-2 text-xs"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="City *"
+                    value={addressForm.city}
+                    onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                    className="input-field py-2 text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="State *"
+                    value={addressForm.state}
+                    onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                    className="input-field py-2 text-xs"
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setCompletedSteps((prev) => ({ ...prev, 2: true }));
-                    setActiveStep(3);
-                  }}
-                  className="btn-primary w-full text-xs py-3 mt-4"
+                  onClick={addAddress}
+                  disabled={savingAddress}
+                  className="btn-primary text-xs py-2.5 px-6"
                 >
-                  Proceed to Payment →
+                  {savingAddress ? 'Saving...' : 'Save & Deliver Here'}
                 </button>
               </div>
             )}
-          </section>
+          </div>
 
-          {/* STEP 3: PAYMENT OPTION */}
-          <section className={`card p-6 space-y-4 transition-all ${activeStep === 3 ? 'ring-2 ring-agri-green/30 border-agri-green' : ''}`}>
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <CreditCard size={22} className="text-agri-green" />
-              <div>
-                <h2 className="text-lg font-black text-slate-900">3. Payment Option</h2>
-                <p className="text-xs text-slate-500">Select preferred payment method</p>
-              </div>
+          {/* STEP 2: Review Items */}
+          <div className={`card p-6 space-y-4 transition-all ${activeStep === 2 ? 'ring-2 ring-agri-green/30' : ''}`}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                <ShieldCheck size={18} className="text-agri-green" /> 2. Order Review ({cartTotals.totalQuantity} Items)
+              </h2>
             </div>
 
-            {activeStep === 3 && (
-              <div className="space-y-4 pt-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* COD Option */}
-                  <label
-                    onClick={() => setPaymentMethod('COD')}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
-                      paymentMethod === 'COD'
-                        ? 'border-agri-green bg-emerald-50/50 ring-1 ring-agri-green'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <input type="radio" checked={paymentMethod === 'COD'} onChange={() => {}} className="mt-1 accent-agri-green" />
-                    <div>
-                      <p className="font-bold text-slate-900 text-sm">Cash on Delivery (COD)</p>
-                      <p className="text-xs text-slate-500 mt-1">Pay with cash upon farm doorstep delivery.</p>
+            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto pr-2">
+              {cart.map((item) => {
+                const uPrice = getItemUnitPrice(item);
+                const qty = getItemQuantity(item);
+                return (
+                  <div key={item._id} className="py-3 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 border overflow-hidden shrink-0">
+                        <ProductImage product={item} src={item.imageUrl} alt={item.name} aspect="aspect-square" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-xs text-slate-900 line-clamp-1">{item.name}</p>
+                        <p className="text-[11px] text-slate-500 font-medium">Qty: {qty} × {formatCurrency(uPrice)}</p>
+                      </div>
                     </div>
-                  </label>
+                    <span className="font-extrabold text-xs text-agri-forest shrink-0">
+                      {formatCurrency(uPrice * qty)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-                  {/* Online Razorpay Option */}
-                  <label
-                    onClick={() => setPaymentMethod('Online')}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
-                      paymentMethod === 'Online'
-                        ? 'border-agri-green bg-emerald-50/50 ring-1 ring-agri-green'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <input type="radio" checked={paymentMethod === 'Online'} onChange={() => {}} className="mt-1 accent-agri-green" />
-                    <div>
-                      <p className="font-bold text-slate-900 text-sm">Online Payment (Razorpay)</p>
-                      <p className="text-xs text-slate-500 mt-1">UPI (GPay/PhonePe), Cards, NetBanking.</p>
-                    </div>
-                  </label>
+          {/* STEP 3: Payment Method */}
+          <div className={`card p-6 space-y-4 transition-all ${activeStep === 3 ? 'ring-2 ring-agri-green/30' : ''}`}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
+                <CreditCard size={18} className="text-agri-green" /> 3. Select Payment Method
+              </h2>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              {/* Online / Razorpay Option */}
+              <div
+                onClick={() => setPaymentMethod('Online')}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                  paymentMethod === 'Online'
+                    ? 'bg-emerald-50/60 border-agri-green shadow-xs'
+                    : 'bg-white border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full border-2 grid place-items-center mt-0.5 ${
+                  paymentMethod === 'Online' ? 'border-agri-green bg-agri-green' : 'border-slate-300'
+                }`}>
+                  {paymentMethod === 'Online' && <div className="w-2 h-2 bg-white rounded-full" />}
                 </div>
-
-                <div className="pt-4 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={placeOrder}
-                    disabled={placing}
-                    className="btn-accent w-full text-base py-4 shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
-                  >
-                    {placing ? (
-                      <span>Processing Order...</span>
-                    ) : (
-                      <>
-                        <Lock size={18} />{' '}
-                        {paymentMethod === 'Online'
-                          ? `Pay ${formatCurrency(cartTotals.finalTotal)} via Razorpay`
-                          : `Confirm & Place Order (${formatCurrency(cartTotals.finalTotal)})`}
-                      </>
-                    )}
-                  </button>
+                <div>
+                  <p className="font-bold text-xs text-slate-900">Razorpay Secure Online</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    UPI, Credit/Debit Card, NetBanking, Wallet (Razorpay Test Mode)
+                  </p>
+                  <span className="inline-block bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded mt-2 uppercase">
+                    Official SDK Verified
+                  </span>
                 </div>
               </div>
-            )}
-          </section>
+
+              {/* Cash On Delivery Option */}
+              <div
+                onClick={() => setPaymentMethod('COD')}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                  paymentMethod === 'COD'
+                    ? 'bg-emerald-50/60 border-agri-green shadow-xs'
+                    : 'bg-white border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full border-2 grid place-items-center mt-0.5 ${
+                  paymentMethod === 'COD' ? 'border-agri-green bg-agri-green' : 'border-slate-300'
+                }`}>
+                  {paymentMethod === 'COD' && <div className="w-2 h-2 bg-white rounded-full" />}
+                </div>
+                <div>
+                  <p className="font-bold text-xs text-slate-900">Cash on Delivery (COD)</p>
+                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    Pay with cash directly to the delivery agent upon doorstep arrival.
+                  </p>
+                  <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded mt-2 uppercase">
+                    Zero Pre-payment
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Redesigned Sticky Order Summary (4 Cols) */}
+        {/* Right Column: Order Summary Sidebar (4 Cols) */}
         <aside className="lg:col-span-4 card p-6 lg:sticky lg:top-28 space-y-6">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-black text-slate-900 uppercase tracking-wide">
-              ORDER SUMMARY
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              {cartTotals.totalQuantity} items in shipment
-            </p>
-          </div>
-
-          {/* Product Items Thumbnail List */}
-          <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
-            {cart.map((item) => {
-              const uPrice = getItemUnitPrice(item);
-              const qty = getItemQuantity(item);
-              const itemSubtotal = uPrice * qty;
-
-              return (
-                <div key={item._id} className="flex items-center justify-between gap-3 text-xs pb-2 border-b border-slate-100 last:border-0">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                      <ProductImage src={item.imageUrl} category={item.category} aspect="aspect-square" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-900 truncate leading-snug">{item.name}</p>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        {qty} × {formatCurrency(uPrice)}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="font-extrabold text-slate-900 shrink-0">{formatCurrency(itemSubtotal)}</span>
-                </div>
-              );
-            })}
-          </div>
+          <h2 className="text-xl font-black text-slate-900 border-b border-slate-100 pb-4">Payment Summary</h2>
 
           {/* Price Breakdown */}
-          <div className="space-y-3 text-xs sm:text-sm pt-2 border-t border-slate-200">
+          <div className="space-y-3 text-xs sm:text-sm">
             <div className="flex items-center justify-between text-slate-600">
               <span>Items Total ({cartTotals.totalQuantity})</span>
               <span className="font-bold text-slate-900">{formatCurrency(cartTotals.itemsTotal)}</span>
             </div>
             <div className="flex items-center justify-between text-slate-600">
-              <span>Shipping</span>
-              <span className="font-extrabold text-emerald-600 uppercase">FREE</span>
+              <span>Shipping Fee</span>
+              <span className="font-extrabold text-emerald-600">FREE</span>
             </div>
             <div className="flex items-center justify-between text-slate-600">
               <span>GST & Taxes</span>
@@ -738,8 +631,8 @@ const Checkout = () => {
             </div>
 
             <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-              <span className="font-black text-slate-900 text-sm sm:text-base">TOTAL PAYABLE</span>
-              <span className="font-black text-agri-forest text-xl sm:text-2xl">{formatCurrency(cartTotals.finalTotal)}</span>
+              <span className="font-black text-slate-900 text-base">Total Payable</span>
+              <span className="font-black text-agri-forest text-2xl">{formatCurrency(cartTotals.finalTotal)}</span>
             </div>
           </div>
 
@@ -758,11 +651,11 @@ const Checkout = () => {
                 placeOrder();
               }
             }}
-            disabled={placing}
-            className="btn-accent w-full text-xs sm:text-sm py-3.5 shadow-md flex items-center justify-center gap-2"
+            disabled={placing || verifyingPayment}
+            className="btn-accent w-full text-xs sm:text-sm py-3.5 shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {placing ? (
-              <span>Processing...</span>
+            {placing || verifyingPayment ? (
+              <span>{verifyingPayment ? 'Verifying Signature...' : 'Creating Payment...'}</span>
             ) : activeStep < 3 ? (
               <>
                 Proceed to Payment <ArrowRight size={16} />

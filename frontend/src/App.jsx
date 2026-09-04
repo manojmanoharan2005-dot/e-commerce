@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Addresses from './pages/Addresses';
 import Wishlist from './pages/Wishlist';
+import OrderSuccess from './pages/OrderSuccess';
 import AdminDashboard from './pages/AdminDashboard';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -100,6 +101,11 @@ const AppLayout = () => {
           <Route path="/wishlist" element={
             <ProtectedRoute userOnly>
               <Wishlist />
+            </ProtectedRoute>
+          } />
+          <Route path="/order-success" element={
+            <ProtectedRoute userOnly>
+              <OrderSuccess />
             </ProtectedRoute>
           } />
 
