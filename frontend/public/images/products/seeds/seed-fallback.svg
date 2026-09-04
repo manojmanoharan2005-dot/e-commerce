@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <rect width="400" height="400" rx="32" fill="#F8FAF8"/>
+  <ellipse cx="200" cy="355" rx="80" ry="12" fill="#000000" fillOpacity="0.08"/>
+  <rect x="110" y="70" width="180" height="260" rx="20" fill="#FFF7ED" stroke="#EA580C" stroke-width="4"/>
+  <path d="M110 100 H290 M110 300 H290" stroke="#F97316" stroke-width="3" stroke-dasharray="6 4"/>
+  <rect x="125" y="115" width="150" height="50" rx="10" fill="#EA580C"/>
+  <text x="200" y="145" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="14" font-weight="900" letter-spacing="1">HYBRID SEEDS</text>
+  <circle cx="200" cy="215" r="32" fill="#FEF3C7" stroke="#F59E0B" stroke-width="3"/>
+  <path d="M200 232 C200 215 188 204 188 204 C188 204 200 207 200 222 C200 207 212 204 212 204 C212 204 200 215 200 232 Z" fill="#D97706"/>
+  <text x="200" y="275" text-anchor="middle" fill="#78350F" font-family="sans-serif" font-size="12" font-weight="800">GERMINATION 98%</text>
+  <text x="200" y="292" text-anchor="middle" fill="#9A3412" font-family="sans-serif" font-size="10" font-weight="600">Certified Seed Packet</text>
+</svg>

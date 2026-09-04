@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
+  <rect width="400" height="400" rx="32" fill="#F8FAF8"/>
+  <ellipse cx="200" cy="360" rx="120" ry="16" fill="#000000" fillOpacity="0.07"/>
+  <!-- Vermicompost Premium Bag -->
+  <path d="M100 90 C100 80 110 70 130 70 L270 70 C290 70 300 80 300 90 L320 330 C322 350 305 360 280 360 L120 360 C95 360 78 350 80 330 Z" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="4"/>
+  <rect x="90" y="55" width="220" height="24" rx="6" fill="#15803D" stroke="#166534" stroke-width="2"/>
+  <path d="M95 67 H305" stroke="#FFFFFF" stroke-width="3" stroke-dasharray="8 6"/>
+  <!-- Front Brand Label -->
+  <rect x="115" y="130" width="170" height="160" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="3"/>
+  <rect x="115" y="130" width="170" height="45" rx="14" fill="#0F382C"/>
+  <text x="200" y="158" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="14" font-weight="900" letter-spacing="2">VERMICOMPOST</text>
+  <!-- Sprout Graphic -->
+  <circle cx="200" cy="210" r="26" fill="#DCFCE7"/>
+  <path d="M200 224 V198 M200 208 C190 200 184 208 184 208 M200 204 C210 196 216 204 216 204" stroke="#16A34A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <text x="200" y="255" text-anchor="middle" fill="#1E293B" font-family="sans-serif" font-size="12" font-weight="800">100% ORGANIC FORMULA</text>
+  <text x="200" y="272" text-anchor="middle" fill="#64748B" font-family="sans-serif" font-size="10" font-weight="600">Enriched Earthworm Castings</text>
+  <!-- Seal -->
+  <rect x="145" y="305" width="110" height="30" rx="8" fill="#15803D"/>
+  <text x="200" y="325" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="12" font-weight="900">CERTIFIED BIO</text>
+</svg>

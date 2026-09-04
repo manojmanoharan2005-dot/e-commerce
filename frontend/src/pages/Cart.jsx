@@ -55,6 +55,7 @@ const Cart = () => {
                 {/* Product Image */}
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
                   <ProductImage
+                    product={item}
                     src={item.imageUrl}
                     alt={item.name}
                     category={item.category}

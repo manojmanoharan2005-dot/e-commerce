@@ -69,6 +69,7 @@ const ProductCard = ({ product, onWishlistChange, onAddToCartToast }) => {
       {/* Product Image Area */}
       <Link to={`/products/${product._id}`} className="relative block aspect-square w-full p-2 sm:p-2.5">
         <ProductImage
+          product={product}
           src={rawImage}
           images={product?.images}
           productName={product?.name}
