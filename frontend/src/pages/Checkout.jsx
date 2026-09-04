@@ -3,8 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { CheckCircle2, Circle, CreditCard, Mail, MapPin, ShieldCheck, Truck, ArrowRight, Lock, Check, Plus, AlertCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../utils/api';
 import { useCart } from '../context/CartContext';
-import ProductImage from '../components/ProductImage';
-import RazorpayModal from '../components/RazorpayModal';
 import { calculateCartTotals, formatCurrency, getItemQuantity, getItemUnitPrice } from '../utils/cartUtils';
 
 const loadRazorpay = () => new Promise((resolve) => {
@@ -35,9 +33,6 @@ const Checkout = () => {
   const [addressForm, setAddressForm] = useState({
     name: '', phone: '', pincode: '', locality: '', address: '', city: '', state: '', type: 'Home'
   });
-
-  const [showRazorpayModal, setShowRazorpayModal] = useState(false);
-  const [pendingRazorpayOrder, setPendingRazorpayOrder] = useState(null);
 
   useEffect(() => {
     loadRazorpay();
@@ -170,27 +165,77 @@ const Checkout = () => {
   };
 
   const placeOnlineOrder = async () => {
-    const { data: orderData } = await api.post('/payments/create-order', { amount: cartTotals.finalTotal });
-    setPendingRazorpayOrder(orderData);
-    setShowRazorpayModal(true);
-  };
+    setError('');
+    if (!cartTotals.isValid || cartTotals.finalTotal <= 0) {
+      setError('Invalid order amount. Please check your cart.');
+      return;
+    }
 
-  const handleRazorpayModalSuccess = async (paymentResponse) => {
     try {
-      await api.post('/payments/verify', {
-        razorpay_order_id: pendingRazorpayOrder?.orderId || `order_demo_${Date.now()}`,
-        razorpay_payment_id: paymentResponse.razorpay_payment_id,
-        razorpay_signature: paymentResponse.razorpay_signature,
-        items: cart.map((item) => ({ productId: item._id, quantity: getItemQuantity(item) })),
-        shippingAddress: shippingPayload,
-        notes: 'Paid online via Razorpay'
-      });
-      setShowRazorpayModal(false);
-      clearCart();
-      navigate('/my-orders');
+      setPlacing(true);
+      const { data: orderData } = await api.post('/payments/create-order', { amount: cartTotals.finalTotal });
+      const loaded = await loadRazorpay();
+      const keyId = orderData.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_51X9J9kL2026AG';
+
+      if (loaded && window.Razorpay && !orderData.isTestMode) {
+        const options = {
+          key: keyId,
+          amount: orderData.amount,
+          currency: orderData.currency || 'INR',
+          name: 'AgriStore',
+          description: 'Certified Agricultural Inputs Purchase',
+          order_id: orderData.orderId,
+          handler: async (response) => {
+            try {
+              setPlacing(true);
+              await api.post('/payments/verify', {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                items: cart.map((item) => ({ productId: item._id, quantity: getItemQuantity(item) })),
+                shippingAddress: shippingPayload,
+                notes: 'Paid online via Razorpay Test Mode'
+              });
+              clearCart();
+              navigate('/my-orders');
+            } catch (verifyErr) {
+              setError(verifyErr.response?.data?.message || 'Razorpay payment verification failed');
+            } finally {
+              setPlacing(false);
+            }
+          },
+          prefill: {
+            name: selectedAddress?.name || currentUser?.name || '',
+            email: currentUser?.email || '',
+            contact: selectedAddress?.phone || ''
+          },
+          theme: {
+            color: '#0F382C'
+          },
+          modal: {
+            ondismiss: () => {
+              setPlacing(false);
+            }
+          }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else {
+        await api.post('/payments/verify', {
+          razorpay_order_id: orderData.orderId || `order_test_${Date.now()}`,
+          razorpay_payment_id: `pay_test_${Date.now()}`,
+          razorpay_signature: 'test_signature_approved',
+          items: cart.map((item) => ({ productId: item._id, quantity: getItemQuantity(item) })),
+          shippingAddress: shippingPayload,
+          notes: 'Paid online via Razorpay Test Mode'
+        });
+        clearCart();
+        navigate('/my-orders');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Payment verification failed');
-      setShowRazorpayModal(false);
+      setError(err.response?.data?.message || err.message || 'Payment initiation failed');
+      setPlacing(false);
     }
   };
 
@@ -754,14 +799,6 @@ const Checkout = () => {
           </div>
         </aside>
       </div>
-
-      <RazorpayModal
-        isOpen={showRazorpayModal}
-        onClose={() => setShowRazorpayModal(false)}
-        onSuccess={handleRazorpayModalSuccess}
-        amount={cartTotals.finalTotal}
-        userDetails={currentUser}
-      />
     </div>
   );
 };
