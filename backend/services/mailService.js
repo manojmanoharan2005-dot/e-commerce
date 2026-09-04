@@ -121,19 +121,24 @@ export const sendOrderConfirmationEmail = async (order, user) => {
 
       <table style="width:100%;margin-bottom:32px;" cellpadding="0" cellspacing="0">
         <tr>
-          <td style="padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;width:33%;">
+          <td style="padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;width:25%;">
             <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Order ID</p>
-            <p style="margin:6px 0 0;font-size:16px;font-weight:800;color:#0f172a;">#${orderId}</p>
+            <p style="margin:6px 0 0;font-size:15px;font-weight:800;color:#0f172a;">#${orderId}</p>
           </td>
-          <td style="width:12px;"></td>
-          <td style="padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;width:33%;">
+          <td style="width:8px;"></td>
+          <td style="padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;width:25%;">
             <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Order Date</p>
-            <p style="margin:6px 0 0;font-size:14px;font-weight:700;color:#0f172a;">${formatDate(order.orderDate)}</p>
+            <p style="margin:6px 0 0;font-size:13px;font-weight:700;color:#0f172a;">${formatDate(order.orderDate)}</p>
           </td>
-          <td style="width:12px;"></td>
-          <td style="padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;width:33%;">
-            <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Payment</p>
-            <p style="margin:6px 0 0;font-size:15px;font-weight:700;color:#0f172a;text-transform:capitalize;">${order.paymentMethod}</p>
+          <td style="width:8px;"></td>
+          <td style="padding:16px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;width:25%;">
+            <p style="margin:0;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Payment Method</p>
+            <p style="margin:6px 0 0;font-size:13px;font-weight:700;color:#0f172a;text-transform:capitalize;">${order.paymentMethod}</p>
+          </td>
+          <td style="width:8px;"></td>
+          <td style="padding:16px;background:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;width:25%;">
+            <p style="margin:0;font-size:11px;color:#15803d;text-transform:uppercase;letter-spacing:1px;font-weight:700;">Payment Ref</p>
+            <p style="margin:6px 0 0;font-size:12px;font-weight:800;color:#166534;word-break:break-all;">${order.paymentDetails?.razorpay_payment_id || 'COD'}</p>
           </td>
         </tr>
       </table>

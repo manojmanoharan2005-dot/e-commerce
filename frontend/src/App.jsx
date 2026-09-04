@@ -8,13 +8,13 @@ import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import MyOrders from './pages/MyOrders';
+import OrderSuccess from './pages/OrderSuccess';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Addresses from './pages/Addresses';
 import Wishlist from './pages/Wishlist';
-import OrderSuccess from './pages/OrderSuccess';
 import AdminDashboard from './pages/AdminDashboard';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -78,6 +78,11 @@ const AppLayout = () => {
               <Checkout />
             </ProtectedRoute>
           } />
+          <Route path="/order-success" element={
+            <ProtectedRoute userOnly>
+              <OrderSuccess />
+            </ProtectedRoute>
+          } />
           <Route path="/my-orders" element={
             <ProtectedRoute userOnly>
               <MyOrders />
@@ -101,11 +106,6 @@ const AppLayout = () => {
           <Route path="/wishlist" element={
             <ProtectedRoute userOnly>
               <Wishlist />
-            </ProtectedRoute>
-          } />
-          <Route path="/order-success" element={
-            <ProtectedRoute userOnly>
-              <OrderSuccess />
             </ProtectedRoute>
           } />
 

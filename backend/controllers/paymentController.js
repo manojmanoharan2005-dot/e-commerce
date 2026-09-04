@@ -7,48 +7,55 @@ import { sendOrderConfirmationEmail, sendOrderStatusEmail } from '../services/ma
 export const createRazorpayOrder = async (req, res) => {
   try {
     const { amount } = req.body;
-    const numAmount = Number(amount);
-
-    if (isNaN(numAmount) || numAmount <= 0) {
-      return res.status(400).json({ message: 'Valid positive amount is required for Razorpay order creation' });
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Valid amount is required' });
     }
 
-    const keyId = (process.env.RAZORPAY_KEY_ID || 'rzp_test_51X9J9kL2026AG').replace(/"/g, '');
     const razorpay = getRazorpayInstance();
-    const paiseAmount = Math.round(numAmount * 100);
+    const keyId = process.env.RAZORPAY_KEY_ID?.replace(/"/g, '');
 
-    if (razorpay) {
-      try {
-        const shortReceipt = `rcpt_${Date.now()}_${String(req.user._id).slice(-6)}`.slice(0, 40);
-        const order = await razorpay.orders.create({
-          amount: paiseAmount,
-          currency: 'INR',
-          receipt: shortReceipt
-        });
-
-        return res.json({
-          orderId: order.id,
-          amount: order.amount,
-          currency: order.currency,
-          keyId
-        });
-      } catch (rpError) {
-        console.warn('Razorpay SDK order create failed, falling back to test order ID:', rpError.error?.description || rpError.message);
-      }
+    if (!razorpay || !keyId) {
+      const mockOrderId = `order_demo_${Date.now()}`;
+      return res.json({
+        orderId: mockOrderId,
+        amount: Math.round(amount * 100),
+        currency: 'INR',
+        keyId: 'rzp_test_demo',
+        isMock: true
+      });
     }
 
-    // Direct Test Mode Order ID fallback
-    const testOrderId = `order_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-    return res.json({
-      orderId: testOrderId,
-      amount: paiseAmount,
+    const shortReceipt = `rcpt_${Date.now()}_${String(req.user._id).slice(-8)}`;
+    const options = {
+      amount: Math.round(amount * 100), // convert to paise
       currency: 'INR',
-      keyId,
-      isTestMode: true
-    });
+      receipt: shortReceipt.slice(0, 40)
+    };
+
+    try {
+      const order = await razorpay.orders.create(options);
+      console.log('Razorpay Order Created Successfully:', {
+        id: order.id,
+        amount: order.amount,
+        currency: order.currency
+      });
+      return res.json({
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        keyId
+      });
+    } catch (rpError) {
+      const errorMsg = rpError?.error?.description || rpError?.message || 'Razorpay order creation failed';
+      console.error('Razorpay API order creation failure:', errorMsg);
+      return res.status(400).json({
+        message: `Razorpay Order Error: ${errorMsg}`,
+        errorDetails: rpError?.error
+      });
+    }
   } catch (error) {
     console.error('Razorpay create order error:', error);
-    const message = error?.error?.description || error?.message || 'Razorpay order creation failed';
+    const message = error?.error?.description || error?.description || error?.message || 'Razorpay order creation failed';
     res.status(500).json({ message });
   }
 };
@@ -65,13 +72,16 @@ export const verifyPayment = async (req, res) => {
     } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ message: 'Razorpay payment details are incomplete' });
+      return res.status(400).json({ message: 'Payment details are incomplete' });
     }
 
-    const keySecret = (process.env.RAZORPAY_KEY_SECRET || 'rZp_tEsT_sEcReT_kEy_2026_xYz').replace(/"/g, '');
+    const isMockOrder = razorpay_order_id.startsWith('order_demo_') || razorpay_signature === 'mock_signature';
 
-    // HMAC SHA256 Signature Verification for real Razorpay orders
-    if (!razorpay_order_id.startsWith('order_test_') && razorpay_signature !== 'test_signature_approved') {
+    if (!isMockOrder) {
+      const keySecret = process.env.RAZORPAY_KEY_SECRET?.replace(/"/g, '');
+      if (!keySecret) {
+        return res.status(503).json({ message: 'Payment verification unavailable. Missing Razorpay secret.' });
+      }
       const signaturePayload = `${razorpay_order_id}|${razorpay_payment_id}`;
       const expectedSignature = crypto
         .createHmac('sha256', keySecret)
@@ -79,7 +89,7 @@ export const verifyPayment = async (req, res) => {
         .digest('hex');
 
       if (expectedSignature !== razorpay_signature) {
-        return res.status(400).json({ message: 'Razorpay payment verification failed: invalid signature' });
+        return res.status(400).json({ message: 'Payment verification failed: invalid signature' });
       }
     }
 
@@ -101,7 +111,7 @@ export const verifyPayment = async (req, res) => {
       }
       if (product.stock < item.quantity) {
         return res.status(400).json({
-          message: `Insufficient stock for "${product.name}". Available: ${product.stock}`
+          message: `Insufficient stock for \"${product.name}\". Available: ${product.stock}`
         });
       }
       const subtotal = product.price * item.quantity;
@@ -114,7 +124,6 @@ export const verifyPayment = async (req, res) => {
         quantity: item.quantity,
         subtotal
       });
-
       await Product.findByIdAndUpdate(product._id, { $inc: { stock: -item.quantity } });
     }
 
@@ -134,17 +143,17 @@ export const verifyPayment = async (req, res) => {
       notes
     });
 
-    sendOrderConfirmationEmail(order, req.user).catch((err) =>
+    sendOrderConfirmationEmail(order, req.user).catch(err =>
       console.error('Payment order email error:', err.message)
     );
-    sendOrderStatusEmail(order, req.user, 'processing').catch((err) =>
+    sendOrderStatusEmail(order, req.user, 'processing').catch(err =>
       console.error('Payment processing email error:', err.message)
     );
 
     res.status(201).json({ order });
   } catch (error) {
     console.error('Razorpay verify error:', error);
-    const message = error?.error?.description || error?.message || 'Payment verification failed';
+    const message = error?.error?.description || error?.description || error?.message || 'Payment verification failed';
     res.status(500).json({ message });
   }
 };

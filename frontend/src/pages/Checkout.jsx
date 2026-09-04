@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CheckCircle2, Circle, CreditCard, Mail, MapPin, ShieldCheck, Truck, ArrowRight, Lock, Check, Plus, AlertCircle, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle2, Circle, CreditCard, Mail, MapPin, ShieldCheck, Truck, ArrowRight, Lock, Check, Plus, AlertCircle, RefreshCw } from 'lucide-react';
 import api from '../utils/api';
 import { useCart } from '../context/CartContext';
 import ProductImage from '../components/ProductImage';
@@ -23,18 +23,21 @@ const Checkout = () => {
 
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [paymentMethod, setPaymentMethod] = useState('Online');
   const [placing, setPlacing] = useState(false);
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
   const [error, setError] = useState('');
+  const [paymentStatusMessage, setPaymentStatusMessage] = useState('');
   const [activeStep, setActiveStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState({ 1: false, 2: false, 3: false });
   const [showAddressForm, setShowAddressForm] = useState(false);
-  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
   const [addressForm, setAddressForm] = useState({
     name: '', phone: '', pincode: '', locality: '', address: '', city: '', state: '', type: 'Home'
   });
+
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isConnectingRazorpay, setIsConnectingRazorpay] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
 
   useEffect(() => {
     loadRazorpay();
@@ -89,7 +92,6 @@ const Checkout = () => {
     [addresses, selectedAddressId]
   );
 
-  // Reliable total calculation from cart items
   const cartTotals = useMemo(() => calculateCartTotals(cart), [cart]);
 
   const shippingPayload = selectedAddress
@@ -163,100 +165,27 @@ const Checkout = () => {
       paymentMethod: 'COD'
     });
     clearCart();
-    navigate('/order-success', { state: { order: data.order } });
+    navigate('/order-success', {
+      state: { order: data.order, totalPaid: cartTotals.finalTotal }
+    });
   };
 
-  const placeOnlineOrder = async () => {
+  const handleOpenPaymentModal = () => {
     setError('');
-    if (!cartTotals.isValid || cartTotals.finalTotal <= 0) {
-      setError('Invalid order amount. Please check your cart.');
+    setConnectionError('');
+    setPaymentStatusMessage('');
+    if (!selectedAddressId) {
+      setError('Please select or add a delivery address');
+      setActiveStep(1);
       return;
     }
-
-    try {
-      setPlacing(true);
-      const { data: orderData } = await api.post('/payments/create-order', { amount: cartTotals.finalTotal });
-      const loaded = await loadRazorpay();
-      const keyId = orderData.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_51X9J9kL2026AG';
-
-      if (loaded && window.Razorpay && !orderData.isTestMode) {
-        const options = {
-          key: keyId,
-          amount: orderData.amount,
-          currency: orderData.currency || 'INR',
-          name: 'AgriStore',
-          description: 'Certified Agricultural Inputs Purchase',
-          order_id: orderData.orderId,
-          handler: async (response) => {
-            try {
-              setVerifyingPayment(true);
-              const { data: verifyRes } = await api.post('/payments/verify', {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                items: cart.map((item) => ({ productId: item._id, quantity: getItemQuantity(item) })),
-                shippingAddress: shippingPayload,
-                notes: 'Paid online via Razorpay Test Mode'
-              });
-
-              clearCart();
-              // Navigate to Order Success page ONLY after verified backend response
-              navigate('/order-success', {
-                state: {
-                  order: verifyRes.order,
-                  paymentId: response.razorpay_payment_id,
-                  orderId: response.razorpay_order_id
-                }
-              });
-            } catch (verifyErr) {
-              setError(verifyErr.response?.data?.message || 'Razorpay payment verification failed');
-            } finally {
-              setVerifyingPayment(false);
-              setPlacing(false);
-            }
-          },
-          prefill: {
-            name: selectedAddress?.name || currentUser?.name || '',
-            email: currentUser?.email || '',
-            contact: selectedAddress?.phone || ''
-          },
-          theme: {
-            color: '#0F382C'
-          },
-          modal: {
-            ondismiss: () => {
-              setPlacing(false);
-              setError('Payment cancelled. Your order has not been placed.');
-            }
-          }
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.open();
-      } else {
-        // Safe direct verification fallback
-        setVerifyingPayment(true);
-        const { data: verifyRes } = await api.post('/payments/verify', {
-          razorpay_order_id: orderData.orderId || `order_test_${Date.now()}`,
-          razorpay_payment_id: `pay_test_${Date.now()}`,
-          razorpay_signature: 'test_signature_approved',
-          items: cart.map((item) => ({ productId: item._id, quantity: getItemQuantity(item) })),
-          shippingAddress: shippingPayload,
-          notes: 'Paid online via Razorpay Test Mode'
-        });
-        clearCart();
-        setVerifyingPayment(false);
-        navigate('/order-success', { state: { order: verifyRes.order } });
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Payment initiation failed');
-      setPlacing(false);
-      setVerifyingPayment(false);
-    }
+    setShowPaymentModal(true);
   };
 
-  const placeOrder = async () => {
+  const handleOnlinePayment = async () => {
     setError('');
+    setPaymentStatusMessage('');
+
     if (!selectedAddressId) {
       setError('Please select or add a delivery address');
       setActiveStep(1);
@@ -266,17 +195,116 @@ const Checkout = () => {
       setError('Cart is empty');
       return;
     }
-    if (!cartTotals.isValid) {
-      setError('Unable to calculate your order total. Please refresh your cart.');
+
+    try {
+      setIsConnectingRazorpay(true);
+      setPaymentStatusMessage('Connecting to secure Razorpay Checkout...');
+
+      // 1. Create Razorpay TEST Order from backend
+      const { data: orderData } = await api.post('/payments/create-order', { amount: cartTotals.finalTotal });
+      const razorpayKey = orderData.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TXyjruJSuz8ekH';
+
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded || !window.Razorpay) {
+        throw new Error('Razorpay Checkout SDK failed to load. Please check your internet connection.');
+      }
+
+      setIsConnectingRazorpay(false);
+      setPaymentStatusMessage('');
+
+      const options = {
+        key: razorpayKey,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        name: 'AgriStore',
+        description: 'AgriStore Certified Agricultural Order',
+        order_id: orderData.orderId,
+        handler: async function (response) {
+          setPaymentStatusMessage('Verifying payment signature with backend...');
+          try {
+            const verifyRes = await api.post('/payments/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              items: cart.map((item) => ({ productId: item._id, quantity: getItemQuantity(item) })),
+              shippingAddress: shippingPayload,
+              notes: 'Paid via Official Razorpay Checkout (TEST MODE)'
+            });
+
+            clearCart();
+            navigate('/order-success', {
+              state: {
+                order: verifyRes.data.order,
+                paymentId: response.razorpay_payment_id,
+                totalPaid: cartTotals.finalTotal
+              }
+            });
+          } catch (vErr) {
+            setError(vErr.response?.data?.message || 'Payment verification failed: Invalid signature');
+          } finally {
+            setPaymentStatusMessage('');
+          }
+        },
+        prefill: {
+          name: shippingPayload?.name || currentUser?.name || '',
+          email: currentUser?.email || '',
+          contact: shippingPayload?.phone || currentUser?.phone || ''
+        },
+        theme: { color: '#0F382C' },
+        modal: {
+          ondismiss: function () {
+            setError('Payment cancelled. You can retry payment when ready.');
+            setPaymentStatusMessage('');
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        const failureData = response.error || {};
+        console.error('Razorpay Payment Failed Event:', {
+          code: failureData.code,
+          description: failureData.description,
+          source: failureData.source,
+          step: failureData.step,
+          reason: failureData.reason,
+          order_id: failureData.metadata?.order_id,
+          payment_id: failureData.metadata?.payment_id
+        });
+        setError(`Razorpay Payment Failed: ${failureData.description || failureData.reason || 'Transaction could not be completed'}`);
+        setPaymentStatusMessage('');
+      });
+      rzp.open();
+    } catch (err) {
+      setIsConnectingRazorpay(false);
+      setPaymentStatusMessage('');
+      setError(err.response?.data?.message || err.message || 'Unable to connect to Razorpay. Please try again.');
+    }
+  };
+
+  const placeOrder = async () => {
+    setError('');
+    setPaymentStatusMessage('');
+    if (!selectedAddressId) {
+      setError('Please select or add a delivery address');
+      setActiveStep(1);
+      return;
+    }
+    if (!cart.length) {
+      setError('Cart is empty');
       return;
     }
 
     try {
-      setPlacing(true);
-      if (paymentMethod === 'COD') await placeCodOrder();
-      else await placeOnlineOrder();
+      if (paymentMethod === 'COD') {
+        setPlacing(true);
+        await placeCodOrder();
+        setPlacing(false);
+      } else {
+        await handleOnlinePayment();
+      }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to place order. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Failed to place order.');
       setPlacing(false);
     }
   };
@@ -293,337 +321,423 @@ const Checkout = () => {
     );
   }
 
-  // Prevent invalid NaN order calculation
-  if (!cartTotals.isValid) {
-    return (
-      <div className="page-container py-16 text-center max-w-md mx-auto space-y-4 card p-8">
-        <AlertCircle size={40} className="mx-auto text-amber-500" />
-        <h2 className="text-xl font-black text-slate-900">Unable to Calculate Order Total</h2>
-        <p className="text-xs text-slate-500">
-          Some pricing data in your cart needs to be refreshed before completing checkout.
-        </p>
-        <button
-          onClick={() => {
-            clearCart();
-            window.location.href = '/products';
-          }}
-          className="btn-accent text-xs px-6 py-3 inline-flex items-center gap-2"
-        >
-          <RefreshCw size={16} /> Refresh Cart
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="page-container py-8 space-y-8">
-      {/* Payment Verification Overlay Loader */}
-      {verifyingPayment && (
-        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex flex-col items-center justify-center p-4 text-white text-center animate-fade-in">
-          <div className="w-16 h-16 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin mb-4" />
-          <h3 className="text-xl font-black">Verifying Payment Securely...</h3>
-          <p className="text-xs text-slate-300 mt-1 max-w-sm">
-            Payment received by Razorpay. Confirming signature with AgriStore backend server...
-          </p>
-        </div>
-      )}
-
-      {/* Checkout Progress Stepper */}
-      <div className="bg-white card p-4 sm:p-6 shadow-sm">
-        <div className="flex items-center justify-between max-w-3xl mx-auto">
-          {/* Step 1: Address */}
-          <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={() => setActiveStep(1)}>
-            <div className={`w-9 h-9 rounded-xl grid place-items-center font-black text-xs transition-colors ${
-              completedSteps[1] ? 'bg-emerald-600 text-white' : activeStep === 1 ? 'bg-agri-forest text-white' : 'bg-slate-100 text-slate-400'
-            }`}>
-              {completedSteps[1] ? <Check size={16} /> : '1'}
-            </div>
-            <span className={`text-xs font-bold ${activeStep === 1 ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}>
-              Address
-            </span>
-          </div>
-
-          <div className="h-0.5 flex-1 mx-2 sm:mx-4 bg-slate-200" />
-
-          {/* Step 2: Order Review */}
-          <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={() => setActiveStep(2)}>
-            <div className={`w-9 h-9 rounded-xl grid place-items-center font-black text-xs transition-colors ${
-              completedSteps[2] ? 'bg-emerald-600 text-white' : activeStep === 2 ? 'bg-agri-forest text-white' : 'bg-slate-100 text-slate-400'
-            }`}>
-              {completedSteps[2] ? <Check size={16} /> : '2'}
-            </div>
-            <span className={`text-xs font-bold ${activeStep === 2 ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}>
-              Review
-            </span>
-          </div>
-
-          <div className="h-0.5 flex-1 mx-2 sm:mx-4 bg-slate-200" />
-
-          {/* Step 3: Payment */}
-          <div className="flex items-center gap-2 sm:gap-3 cursor-pointer" onClick={() => setActiveStep(3)}>
-            <div className={`w-9 h-9 rounded-xl grid place-items-center font-black text-xs transition-colors ${
-              activeStep === 3 ? 'bg-agri-forest text-white' : 'bg-slate-100 text-slate-400'
-            }`}>
-              3
-            </div>
-            <span className={`text-xs font-bold ${activeStep === 3 ? 'text-slate-900 font-extrabold' : 'text-slate-500'}`}>
-              Payment
-            </span>
-          </div>
-        </div>
+      {/* Title Header */}
+      <div className="border-b border-slate-200 pb-6 space-y-1">
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Checkout</h1>
+        <p className="text-sm text-slate-500 font-medium">Complete your order with secure doorstep delivery</p>
       </div>
 
+      {/* Progress Steps Header */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-2xl mx-auto">
+        <button
+          onClick={() => setActiveStep(1)}
+          className={`p-3 rounded-2xl border text-center transition-all flex flex-col sm:flex-row items-center justify-center gap-2 ${
+            activeStep === 1
+              ? 'border-agri-green bg-emerald-50 text-agri-forest font-extrabold shadow-xs'
+              : completedSteps[1]
+              ? 'border-slate-200 bg-white text-slate-800 font-bold'
+              : 'border-slate-200 bg-slate-50 text-slate-400 font-medium'
+          }`}
+        >
+          <span className="w-6 h-6 rounded-full bg-agri-forest text-white text-xs font-black grid place-items-center shrink-0">1</span>
+          <span className="text-xs sm:text-sm truncate">Address</span>
+        </button>
+
+        <button
+          onClick={() => completedSteps[1] && setActiveStep(2)}
+          disabled={!completedSteps[1]}
+          className={`p-3 rounded-2xl border text-center transition-all flex flex-col sm:flex-row items-center justify-center gap-2 ${
+            activeStep === 2
+              ? 'border-agri-green bg-emerald-50 text-agri-forest font-extrabold shadow-xs'
+              : completedSteps[2]
+              ? 'border-slate-200 bg-white text-slate-800 font-bold'
+              : 'border-slate-200 bg-slate-50 text-slate-400 font-medium disabled:opacity-50'
+          }`}
+        >
+          <span className="w-6 h-6 rounded-full bg-agri-forest text-white text-xs font-black grid place-items-center shrink-0">2</span>
+          <span className="text-xs sm:text-sm truncate">Order Review</span>
+        </button>
+
+        <button
+          onClick={() => completedSteps[2] && setActiveStep(3)}
+          disabled={!completedSteps[2]}
+          className={`p-3 rounded-2xl border text-center transition-all flex flex-col sm:flex-row items-center justify-center gap-2 ${
+            activeStep === 3
+              ? 'border-agri-green bg-emerald-50 text-agri-forest font-extrabold shadow-xs'
+              : completedSteps[3]
+              ? 'border-slate-200 bg-white text-slate-800 font-bold'
+              : 'border-slate-200 bg-slate-50 text-slate-400 font-medium disabled:opacity-50'
+          }`}
+        >
+          <span className="w-6 h-6 rounded-full bg-agri-forest text-white text-xs font-black grid place-items-center shrink-0">3</span>
+          <span className="text-xs sm:text-sm truncate">Payment</span>
+        </button>
+      </div>
+
+      {/* Global Error Banner */}
       {error && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs font-bold text-rose-700 flex items-center justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError('')} className="p-1 hover:bg-rose-100 rounded-lg">
-            <X size={16} />
-          </button>
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold flex items-center justify-between gap-3 max-w-4xl mx-auto shadow-xs">
+          <div className="flex items-center gap-2">
+            <AlertCircle size={18} className="text-rose-600 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError('')} className="text-rose-600 hover:underline">Dismiss</button>
         </div>
       )}
 
-      {/* Main Grid */}
+      {/* Global Status Banner */}
+      {paymentStatusMessage && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 max-w-4xl mx-auto animate-pulse">
+          <RefreshCw size={16} className="animate-spin text-agri-green" />
+          <span>{paymentStatusMessage}</span>
+        </div>
+      )}
+
+      {/* Main Content Layout */}
       <div className="grid lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Form Steps (8 Cols) */}
+        {/* Left Column: Interactive Steps (8 Cols) */}
         <div className="lg:col-span-8 space-y-6">
-          {/* STEP 1: Delivery Address */}
-          <div className={`card p-6 space-y-4 transition-all ${activeStep === 1 ? 'ring-2 ring-agri-green/30' : ''}`}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <MapPin size={18} className="text-agri-green" /> 1. Delivery Address
-              </h2>
-              {selectedAddressId && activeStep !== 1 && (
-                <button
-                  onClick={() => setActiveStep(1)}
-                  className="text-xs font-bold text-agri-green hover:underline"
-                >
-                  Change
+
+          {/* STEP 1: DELIVERY ADDRESS */}
+          <section className={`card p-6 space-y-4 transition-all ${activeStep === 1 ? 'ring-2 ring-agri-green/30 border-agri-green' : ''}`}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <MapPin size={22} className="text-agri-green" />
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">1. Delivery Address</h2>
+                  <p className="text-xs text-slate-500">Select or add your farm delivery location</p>
+                </div>
+              </div>
+              {activeStep !== 1 && selectedAddress && (
+                <button onClick={() => setActiveStep(1)} className="text-xs font-extrabold text-agri-green hover:underline">
+                  Change Address
                 </button>
               )}
             </div>
 
-            {/* Saved Addresses List */}
-            <div className="grid sm:grid-cols-2 gap-3">
-              {addresses.map((addr) => {
-                const isSelected = addr._id === selectedAddressId;
-                return (
-                  <div
-                    key={addr._id}
-                    onClick={() => {
-                      setSelectedAddressId(addr._id);
-                      setCompletedSteps((prev) => ({ ...prev, 1: true }));
-                    }}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-emerald-50/60 border-agri-green shadow-xs'
-                        : 'bg-white border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                        {addr.type || 'Home'}
-                      </span>
-                      {isSelected && <CheckCircle2 size={18} className="text-agri-green" />}
-                    </div>
-                    <p className="font-bold text-slate-900 text-xs mt-2">{addr.name}</p>
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1">
-                      {addr.locality}, {addr.address}, {addr.city}, {addr.state} - {addr.pincode}
-                    </p>
-                    <p className="text-[11px] text-slate-700 font-semibold mt-2">Phone: {addr.phone}</p>
+            {activeStep === 1 && (
+              <div className="space-y-4">
+                {addresses.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {addresses.map((addr) => {
+                      const isSelected = addr._id === selectedAddressId;
+                      return (
+                        <div
+                          key={addr._id}
+                          onClick={() => setSelectedAddressId(addr._id)}
+                          className={`p-4 rounded-2xl border cursor-pointer transition-all space-y-1.5 ${
+                            isSelected
+                              ? 'border-agri-green bg-emerald-50/60 ring-2 ring-agri-green/30 shadow-sm'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-xs text-slate-900">{addr.name}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">
+                              {addr.type}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 line-clamp-2">{addr.locality}, {addr.address}</p>
+                          <p className="text-xs font-bold text-slate-800">{addr.city}, {addr.state} - {addr.pincode}</p>
+                          <p className="text-[11px] text-slate-500 font-semibold">Phone: {addr.phone}</p>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                )}
 
-            {/* Add New Address Toggle */}
-            <div>
+                {!showAddressForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddressForm(true)}
+                    className="btn-secondary text-xs py-3 w-full flex items-center justify-center gap-2 border-dashed border-2"
+                  >
+                    <Plus size={16} /> Add New Farm Delivery Address
+                  </button>
+                ) : (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 animate-fadeIn">
+                    <h4 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">New Address Form</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        placeholder="Full Name *"
+                        value={addressForm.name}
+                        onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
+                        className="input-field py-2 text-xs"
+                      />
+                      <input
+                        placeholder="10-digit Phone Number *"
+                        value={addressForm.phone}
+                        onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+                        className="input-field py-2 text-xs"
+                      />
+                      <input
+                        placeholder="Pincode *"
+                        value={addressForm.pincode}
+                        onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })}
+                        className="input-field py-2 text-xs"
+                      />
+                      <input
+                        placeholder="Locality / Village / Landmark *"
+                        value={addressForm.locality}
+                        onChange={(e) => setAddressForm({ ...addressForm, locality: e.target.value })}
+                        className="input-field py-2 text-xs"
+                      />
+                      <input
+                        placeholder="Street Address *"
+                        value={addressForm.address}
+                        onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
+                        className="input-field py-2 text-xs sm:col-span-2"
+                      />
+                      <input
+                        placeholder="City / District *"
+                        value={addressForm.city}
+                        onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                        className="input-field py-2 text-xs"
+                      />
+                      <input
+                        placeholder="State *"
+                        value={addressForm.state}
+                        onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                        className="input-field py-2 text-xs"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={addAddress}
+                        disabled={savingAddress}
+                        className="btn-accent text-xs py-2.5 px-6"
+                      >
+                        {savingAddress ? 'Saving Address...' : 'Save & Use Address'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddressForm(false)}
+                        className="text-xs text-slate-500 hover:underline font-bold"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeStep === 1 && (
               <button
                 type="button"
-                onClick={() => setShowAddressForm(!showAddressForm)}
-                className="btn-secondary text-xs py-2.5 px-4 flex items-center gap-2"
+                onClick={() => {
+                  if (!selectedAddressId) {
+                    setError('Please select an address');
+                    return;
+                  }
+                  setError('');
+                  setCompletedSteps((prev) => ({ ...prev, 1: true }));
+                  setActiveStep(2);
+                }}
+                className="btn-primary w-full text-xs py-3 mt-4"
               >
-                <Plus size={16} /> {showAddressForm ? 'Cancel New Address' : 'Add New Address'}
+                Proceed to Order Review →
               </button>
+            )}
+          </section>
+
+          {/* STEP 2: ORDER REVIEW */}
+          <section className={`card p-6 space-y-4 transition-all ${activeStep === 2 ? 'ring-2 ring-agri-green/30 border-agri-green' : ''}`}>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <Truck size={22} className="text-agri-green" />
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">2. Order Review ({cartTotals.totalQuantity} items)</h2>
+                  <p className="text-xs text-slate-500">Review products before payment</p>
+                </div>
+              </div>
+              {activeStep !== 2 && (
+                <button onClick={() => setActiveStep(2)} className="text-xs font-extrabold text-agri-green hover:underline">
+                  Review Items
+                </button>
+              )}
             </div>
 
-            {/* Address Form */}
-            {showAddressForm && (
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 pt-4">
-                <h3 className="font-bold text-xs text-slate-800">Add New Shipping Address</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    placeholder="Full Name *"
-                    value={addressForm.name}
-                    onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
-                    className="input-field py-2 text-xs"
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Mobile Number *"
-                    value={addressForm.phone}
-                    onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-                    className="input-field py-2 text-xs"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    placeholder="Pincode *"
-                    value={addressForm.pincode}
-                    onChange={(e) => setAddressForm({ ...addressForm, pincode: e.target.value })}
-                    className="input-field py-2 text-xs"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Locality / Area *"
-                    value={addressForm.locality}
-                    onChange={(e) => setAddressForm({ ...addressForm, locality: e.target.value })}
-                    className="input-field py-2 text-xs"
-                  />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Street Address / House No *"
-                  value={addressForm.address}
-                  onChange={(e) => setAddressForm({ ...addressForm, address: e.target.value })}
-                  className="input-field py-2 text-xs"
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    placeholder="City *"
-                    value={addressForm.city}
-                    onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                    className="input-field py-2 text-xs"
-                  />
-                  <input
-                    type="text"
-                    placeholder="State *"
-                    value={addressForm.state}
-                    onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                    className="input-field py-2 text-xs"
-                  />
-                </div>
+            {activeStep === 2 && (
+              <div className="space-y-3">
+                {cart.map((item) => {
+                  const uPrice = getItemUnitPrice(item);
+                  const qty = getItemQuantity(item);
+                  const itemSubtotal = uPrice * qty;
+
+                  return (
+                    <div key={item._id} className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-4 text-xs">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-14 h-14 rounded-lg bg-white overflow-hidden border border-slate-200 shrink-0">
+                          <ProductImage product={item} src={item.imageUrl} category={item.category} aspect="aspect-square" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-900 line-clamp-1">{item.name}</p>
+                          <p className="text-slate-500 mt-0.5">
+                            Quantity: <span className="font-bold text-slate-800">{qty}</span> × ₹{uPrice}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="font-black text-agri-forest text-sm block">₹{itemSubtotal}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+
                 <button
                   type="button"
-                  onClick={addAddress}
-                  disabled={savingAddress}
-                  className="btn-primary text-xs py-2.5 px-6"
+                  onClick={() => {
+                    setCompletedSteps((prev) => ({ ...prev, 2: true }));
+                    setActiveStep(3);
+                  }}
+                  className="btn-primary w-full text-xs py-3 mt-4"
                 >
-                  {savingAddress ? 'Saving...' : 'Save & Deliver Here'}
+                  Proceed to Payment →
                 </button>
               </div>
             )}
-          </div>
+          </section>
 
-          {/* STEP 2: Review Items */}
-          <div className={`card p-6 space-y-4 transition-all ${activeStep === 2 ? 'ring-2 ring-agri-green/30' : ''}`}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <ShieldCheck size={18} className="text-agri-green" /> 2. Order Review ({cartTotals.totalQuantity} Items)
-              </h2>
+          {/* STEP 3: PAYMENT OPTION */}
+          <section className={`card p-6 space-y-4 transition-all ${activeStep === 3 ? 'ring-2 ring-agri-green/30 border-agri-green' : ''}`}>
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+              <CreditCard size={22} className="text-agri-green" />
+              <div>
+                <h2 className="text-lg font-black text-slate-900">3. Choose Payment Option</h2>
+                <p className="text-xs text-slate-500">Select Cash on Delivery or Official Razorpay Checkout</p>
+              </div>
             </div>
 
-            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto pr-2">
-              {cart.map((item) => {
-                const uPrice = getItemUnitPrice(item);
-                const qty = getItemQuantity(item);
-                return (
-                  <div key={item._id} className="py-3 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 border overflow-hidden shrink-0">
-                        <ProductImage product={item} src={item.imageUrl} alt={item.name} aspect="aspect-square" />
+            {activeStep === 3 && (
+              <div className="space-y-4 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Online Official Razorpay Option */}
+                  <label
+                    onClick={() => setPaymentMethod('Online')}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                      paymentMethod === 'Online'
+                        ? 'border-agri-green bg-emerald-50/60 ring-2 ring-agri-green/30 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <input type="radio" checked={paymentMethod === 'Online'} onChange={() => {}} className="mt-1 accent-agri-green" />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-extrabold text-slate-900 text-sm">Online Payment</p>
+                        <span className="text-[9px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">RAZORPAY</span>
                       </div>
-                      <div>
-                        <p className="font-bold text-xs text-slate-900 line-clamp-1">{item.name}</p>
-                        <p className="text-[11px] text-slate-500 font-medium">Qty: {qty} × {formatCurrency(uPrice)}</p>
-                      </div>
+                      <p className="text-xs text-slate-500 mt-1">UPI, UPI QR, Cards, NetBanking & Wallets via Official Razorpay.</p>
                     </div>
-                    <span className="font-extrabold text-xs text-agri-forest shrink-0">
-                      {formatCurrency(uPrice * qty)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  </label>
 
-          {/* STEP 3: Payment Method */}
-          <div className={`card p-6 space-y-4 transition-all ${activeStep === 3 ? 'ring-2 ring-agri-green/30' : ''}`}>
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="font-extrabold text-base text-slate-900 flex items-center gap-2">
-                <CreditCard size={18} className="text-agri-green" /> 3. Select Payment Method
-              </h2>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-3">
-              {/* Online / Razorpay Option */}
-              <div
-                onClick={() => setPaymentMethod('Online')}
-                className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
-                  paymentMethod === 'Online'
-                    ? 'bg-emerald-50/60 border-agri-green shadow-xs'
-                    : 'bg-white border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 grid place-items-center mt-0.5 ${
-                  paymentMethod === 'Online' ? 'border-agri-green bg-agri-green' : 'border-slate-300'
-                }`}>
-                  {paymentMethod === 'Online' && <div className="w-2 h-2 bg-white rounded-full" />}
+                  {/* COD Option */}
+                  <label
+                    onClick={() => setPaymentMethod('COD')}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
+                      paymentMethod === 'COD'
+                        ? 'border-agri-green bg-emerald-50/60 ring-2 ring-agri-green/30 shadow-sm'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <input type="radio" checked={paymentMethod === 'COD'} onChange={() => {}} className="mt-1 accent-agri-green" />
+                    <div>
+                      <p className="font-extrabold text-slate-900 text-sm">Cash on Delivery (COD)</p>
+                      <p className="text-xs text-slate-500 mt-1">Pay with cash upon doorstep delivery.</p>
+                    </div>
+                  </label>
                 </div>
-                <div>
-                  <p className="font-bold text-xs text-slate-900">Razorpay Secure Online</p>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    UPI, Credit/Debit Card, NetBanking, Wallet (Razorpay Test Mode)
-                  </p>
-                  <span className="inline-block bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 rounded mt-2 uppercase">
-                    Official SDK Verified
-                  </span>
+
+                {/* Primary Action Button */}
+                <div className="pt-4 border-t border-slate-100">
+                  {paymentMethod === 'Online' ? (
+                    <button
+                      type="button"
+                      onClick={handleOnlinePayment}
+                      disabled={isConnectingRazorpay || placing}
+                      className="btn-accent w-full text-base py-4 shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+                    >
+                      {isConnectingRazorpay ? (
+                        <>
+                          <RefreshCw size={18} className="animate-spin" />
+                          <span>Connecting to Razorpay...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock size={18} />
+                          <span>Continue to Razorpay — ₹{cartTotals.finalTotal}</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={placeOrder}
+                      disabled={placing}
+                      className="btn-accent w-full text-base py-4 shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                    >
+                      {placing ? (
+                        <span>Processing Order...</span>
+                      ) : (
+                        <>
+                          <Lock size={18} />
+                          <span>Confirm & Place COD Order (₹{cartTotals.finalTotal})</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Cash On Delivery Option */}
-              <div
-                onClick={() => setPaymentMethod('COD')}
-                className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start gap-3 ${
-                  paymentMethod === 'COD'
-                    ? 'bg-emerald-50/60 border-agri-green shadow-xs'
-                    : 'bg-white border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 grid place-items-center mt-0.5 ${
-                  paymentMethod === 'COD' ? 'border-agri-green bg-agri-green' : 'border-slate-300'
-                }`}>
-                  {paymentMethod === 'COD' && <div className="w-2 h-2 bg-white rounded-full" />}
-                </div>
-                <div>
-                  <p className="font-bold text-xs text-slate-900">Cash on Delivery (COD)</p>
-                  <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    Pay with cash directly to the delivery agent upon doorstep arrival.
-                  </p>
-                  <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-black px-2 py-0.5 rounded mt-2 uppercase">
-                    Zero Pre-payment
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+            )}
+          </section>
         </div>
 
-        {/* Right Column: Order Summary Sidebar (4 Cols) */}
+        {/* Right Column: Sticky Order Summary (4 Cols) */}
         <aside className="lg:col-span-4 card p-6 lg:sticky lg:top-28 space-y-6">
-          <h2 className="text-xl font-black text-slate-900 border-b border-slate-100 pb-4">Payment Summary</h2>
+          <div className="border-b border-slate-100 pb-4">
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-wide">ORDER SUMMARY</h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">{cartTotals.totalQuantity} items in shipment</p>
+          </div>
+
+          {/* Items Thumbnail List */}
+          <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+            {cart.map((item) => {
+              const uPrice = getItemUnitPrice(item);
+              const qty = getItemQuantity(item);
+              const itemSubtotal = uPrice * qty;
+
+              return (
+                <div key={item._id} className="flex items-center justify-between gap-3 text-xs pb-2 border-b border-slate-100 last:border-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
+                      <ProductImage product={item} src={item.imageUrl} category={item.category} aspect="aspect-square" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-900 truncate leading-snug">{item.name}</p>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        {qty} × ₹{uPrice}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="font-extrabold text-slate-900 shrink-0">₹{itemSubtotal}</span>
+                </div>
+              );
+            })}
+          </div>
 
           {/* Price Breakdown */}
-          <div className="space-y-3 text-xs sm:text-sm">
+          <div className="space-y-3 text-xs sm:text-sm pt-2 border-t border-slate-200">
             <div className="flex items-center justify-between text-slate-600">
               <span>Items Total ({cartTotals.totalQuantity})</span>
-              <span className="font-bold text-slate-900">{formatCurrency(cartTotals.itemsTotal)}</span>
+              <span className="font-bold text-slate-900">₹{cartTotals.itemsTotal}</span>
             </div>
             <div className="flex items-center justify-between text-slate-600">
-              <span>Shipping Fee</span>
-              <span className="font-extrabold text-emerald-600">FREE</span>
+              <span>Shipping</span>
+              <span className="font-extrabold text-emerald-600 uppercase">FREE</span>
             </div>
             <div className="flex items-center justify-between text-slate-600">
               <span>GST & Taxes</span>
@@ -631,8 +745,8 @@ const Checkout = () => {
             </div>
 
             <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-              <span className="font-black text-slate-900 text-base">Total Payable</span>
-              <span className="font-black text-agri-forest text-2xl">{formatCurrency(cartTotals.finalTotal)}</span>
+              <span className="font-black text-slate-900 text-sm sm:text-base">TOTAL PAYABLE</span>
+              <span className="font-black text-agri-forest text-xl sm:text-2xl">₹{cartTotals.finalTotal}</span>
             </div>
           </div>
 
@@ -651,23 +765,27 @@ const Checkout = () => {
                 placeOrder();
               }
             }}
-            disabled={placing || verifyingPayment}
-            className="btn-accent w-full text-xs sm:text-sm py-3.5 shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+            disabled={placing}
+            className="btn-accent w-full text-xs sm:text-sm py-3.5 shadow-md flex items-center justify-center gap-2"
           >
-            {placing || verifyingPayment ? (
-              <span>{verifyingPayment ? 'Verifying Signature...' : 'Creating Payment...'}</span>
+            {placing ? (
+              <span>Processing...</span>
             ) : activeStep < 3 ? (
               <>
                 Proceed to Payment <ArrowRight size={16} />
               </>
+            ) : paymentMethod === 'Online' ? (
+              <>
+                <Lock size={16} /> Choose Payment & Pay ₹{cartTotals.finalTotal}
+              </>
             ) : (
               <>
-                <Lock size={16} /> Pay {formatCurrency(cartTotals.finalTotal)}
+                <Lock size={16} /> Confirm Order (₹{cartTotals.finalTotal})
               </>
             )}
           </button>
 
-          {/* Selected Shipping Address Snapshot */}
+          {/* Selected Address */}
           {selectedAddress && (
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
               <p className="font-extrabold text-slate-800 flex items-center gap-1">
@@ -683,7 +801,7 @@ const Checkout = () => {
           <div className="pt-2 border-t border-slate-100 space-y-2 text-[11px] text-slate-500 font-semibold">
             <div className="flex items-center gap-2 text-emerald-800">
               <ShieldCheck size={15} className="text-agri-green shrink-0" />
-              <span>✓ 256-Bit Encrypted Secure Checkout</span>
+              <span>✓ 256-Bit Encrypted Official Razorpay Checkout</span>
             </div>
             <div className="flex items-center gap-2 text-emerald-800">
               <Truck size={15} className="text-agri-green shrink-0" />
@@ -692,6 +810,7 @@ const Checkout = () => {
           </div>
         </aside>
       </div>
+
     </div>
   );
 };
