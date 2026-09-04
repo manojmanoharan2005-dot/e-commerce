@@ -25,8 +25,17 @@ const sendViaBrevoApi = async (mailPayload) => {
       res.on('data', (chunk) => { body += chunk; });
       res.on('end', () => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
+          console.log('EMAIL DEBUG - Email service response: SUCCESS', {
+            statusCode: res.statusCode,
+            recipient: mailPayload.to?.[0]?.email,
+            subject: mailPayload.subject
+          });
           resolve(true);
         } else {
+          console.error('EMAIL DEBUG - Email service response: FAILED', {
+            statusCode: res.statusCode,
+            body
+          });
           reject(new Error(`Brevo API error ${res.statusCode}: ${body}`));
         }
       });
