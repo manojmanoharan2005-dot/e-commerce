@@ -1,13 +1,99 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CheckCircle2, ShoppingBag, ArrowRight, ShieldCheck, Package, Calendar, CreditCard } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, ArrowRight, ShieldCheck, Package, Calendar, CreditCard, RefreshCw } from 'lucide-react';
+import api from '../utils/api';
+
+const ORDER_SUCCESS_CACHE_KEY = 'agristore_last_successful_order';
 
 const OrderSuccess = () => {
   const location = useLocation();
-  const state = location.state || {};
-  const order = state.order || {};
-  const paymentId = state.paymentId || order.paymentDetails?.razorpay_payment_id || 'N/A';
-  const totalPaid = state.totalPaid || order.totalAmount || 0;
-  const orderId = order._id || 'N/A';
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const initOrder = async () => {
+      // 1. First check router state
+      const state = location.state || {};
+      if (state.order && state.order._id) {
+        setOrder({
+          ...state.order,
+          paymentId: state.paymentId || state.order.paymentDetails?.razorpay_payment_id || 'COD',
+          totalPaid: state.totalPaid || state.order.totalAmount
+        });
+        sessionStorage.setItem(ORDER_SUCCESS_CACHE_KEY, JSON.stringify({
+          order: state.order,
+          paymentId: state.paymentId || state.order.paymentDetails?.razorpay_payment_id || 'COD',
+          totalPaid: state.totalPaid || state.order.totalAmount
+        }));
+        setLoading(false);
+        return;
+      }
+
+      // 2. Fallback to session cache
+      try {
+        const cached = sessionStorage.getItem(ORDER_SUCCESS_CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.order) {
+            setOrder(parsed.order);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch {
+        // Ignore cache errors
+      }
+
+      // 3. Fallback: fetch latest confirmed order from backend
+      try {
+        const { data } = await api.get('/orders/my-orders');
+        const orders = data.orders || [];
+        if (orders.length > 0) {
+          const latestOrder = orders[0];
+          setOrder({
+            ...latestOrder,
+            paymentId: latestOrder.paymentDetails?.razorpay_payment_id || (latestOrder.paymentMethod === 'COD' ? 'COD' : 'N/A'),
+            totalPaid: latestOrder.totalAmount
+          });
+        } else {
+          setError('No recent orders found.');
+        }
+      } catch (err) {
+        setError('Could not fetch order details.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initOrder();
+  }, [location.state]);
+
+  if (loading) {
+    return (
+      <div className="page-container py-16 text-center max-w-md mx-auto space-y-4">
+        <RefreshCw size={32} className="animate-spin text-agri-green mx-auto" />
+        <p className="text-sm font-bold text-slate-600">Loading Order Confirmation...</p>
+      </div>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <div className="page-container py-16 text-center max-w-md mx-auto space-y-4">
+        <h2 className="text-2xl font-black text-slate-900">No Recent Order</h2>
+        <p className="text-sm text-slate-500">{error || 'Please complete a purchase to view order confirmation.'}</p>
+        <div className="pt-2 flex justify-center gap-3">
+          <Link to="/products" className="btn-accent text-xs px-6 py-3">Explore Marketplace</Link>
+          <Link to="/my-orders" className="btn-secondary text-xs px-6 py-3">View Order History</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const paymentId = order.paymentId || order.paymentDetails?.razorpay_payment_id || (order.paymentMethod === 'COD' ? 'Cash on Delivery' : 'N/A');
+  const totalPaid = order.totalPaid || order.totalAmount || 0;
+  const orderId = order._id ? order._id.toUpperCase() : 'N/A';
 
   return (
     <div className="page-container py-12 sm:py-16 max-w-2xl mx-auto space-y-8 animate-fade-in">
@@ -42,10 +128,17 @@ const OrderSuccess = () => {
             <span className="font-mono font-extrabold text-slate-900">{orderId}</span>
           </div>
 
-          {paymentId !== 'N/A' && (
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+            <span className="text-slate-500 font-bold flex items-center gap-1.5">
+              <CreditCard size={16} className="text-agri-green" /> Payment Method
+            </span>
+            <span className="font-extrabold text-slate-900 uppercase">{order.paymentMethod || 'Online'}</span>
+          </div>
+
+          {paymentId !== 'N/A' && paymentId !== 'Cash on Delivery' && paymentId !== 'COD' && (
             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
               <span className="text-slate-500 font-bold flex items-center gap-1.5">
-                <CreditCard size={16} className="text-agri-green" /> Razorpay Payment ID
+                <ShieldCheck size={16} className="text-agri-green" /> Razorpay Payment ID
               </span>
               <span className="font-mono font-extrabold text-slate-900">{paymentId}</span>
             </div>
@@ -55,11 +148,11 @@ const OrderSuccess = () => {
             <span className="text-slate-500 font-bold flex items-center gap-1.5">
               <Calendar size={16} className="text-agri-green" /> Date & Time
             </span>
-            <span className="font-bold text-slate-800">{new Date().toLocaleString('en-IN')}</span>
+            <span className="font-bold text-slate-800">{new Date(order.orderDate || Date.now()).toLocaleString('en-IN')}</span>
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <span className="text-slate-900 font-black">Total Paid Amount</span>
+            <span className="text-slate-900 font-black">Total Amount</span>
             <span className="text-xl font-black text-agri-forest">₹{totalPaid}</span>
           </div>
         </div>
